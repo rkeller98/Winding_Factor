@@ -4,12 +4,19 @@
 | --- | --- | --- | --- |
 | Set1 | 3000 rpm | 2–40 A | 2 Varianten vorhanden |
 | Set2 | 3000 rpm | 0–40 A | 3 Varianten vorhanden |
-| Set3 | 2250 rpm | 3–30 A | noch nachzureichen |
+| Set3 | 2250 rpm | 3–30 A | neue Forschungsauswertung vorhanden |
 
 - `raw/`: unveränderte Rohdateien.
 - `FluxEval/`: vollständige Auswertungen, bleiben lokal und sind im Gitignore.
 - `extracted/raw/`: alle Rohkanäle nach Drehzahl und Erregerstrom gruppiert.
 - `extracted/evaluation/`: alle gespeicherten `Meas`-Felder aus den Auswertungen.
+
+`research_flux_measurements.mat` wird für alle drei Sets mit
+`prepare_reduction_data.m` neu aus den Rohkanälen erzeugt. Es enthält
+arithmetisch gemittelte Betriebspunkte, gemessene Ströme und stationär aus den
+gemessenen dq-Spannungen berechnete Flussverkettungen. Es ist ein kompakter
+Forschungsexport ohne produktive GUI- oder LUT-Zustände. Set3 ist damit in der
+aktuellen Untersuchung enthalten. Die übrigen historischen Exporte bleiben erhalten.
 
 Einzelne FluxEval-Datei als MAT extrahieren:
 

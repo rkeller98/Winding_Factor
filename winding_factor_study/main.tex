@@ -1,449 +1,323 @@
 \documentclass[11pt,a4paper]{article}
-\usepackage[margin=24mm]{geometry}
-\usepackage{amsmath,amssymb,amsthm,bm,graphicx,booktabs,xcolor}
-\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[margin=23mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,bm,graphicx,booktabs,longtable,placeins,xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
 \graphicspath{{figures/}}
-\setlength{\parskip}{4pt}
-\setlength{\parindent}{0pt}
-\setlength{\emergencystretch}{2em}
-\newcommand{\dd}{\mathrm{d}}
-\newcommand{\ii}{\bm i}
-\newcommand{\ps}{\bm\psi_s}
-\newcommand{\avec}{\bm a}
-\newcommand{\bvec}{\bm b}
-\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}\setlength{\emergencystretch}{2em}
+\newcommand{\ps}{\bm\psi}\newcommand{\dd}{\mathrm d}
+\newcommand{\norm}[1]{\lVert#1\rVert}
 \newtheorem{proposition}{Proposition}
 \input{results.tex}
 \title{\Large Mathematical Derivation and Experimental Validation\\of Excitation-Current Coordinate Reduction\\in Electrically Excited Synchronous Machines}
-\author{Winding Factor Research Study}
-\date{23 October 2026}
-\begin{document}
-\maketitle
+\author{Winding Factor Research Study}\date{24 October 2026}
+\begin{document}\maketitle
 \begin{abstract}
-The replacement \(s=i_d+k i_e\) is examined as a reduction of the two stator flux-linkage functions of an electrically excited synchronous machine. Starting from the supplied handwritten derivation, we distinguish constant-flux secants, differential slope ratios, local proportionality of coupling vectors, and a globally constant shift. A common constant-factor reduction requires \(L_{de}=kL_{dd}\) and \(L_{qe}=kL_{qd}\). A normalized determinant and a joint least-squares factor quantify departures without dividing by a small cross-inductance. Two measured datasets are evaluated using independent local affine flux fits, whole-excitation-group holdout, and a separate gridding experiment. Changing the global factor from approximately 13.5 to approximately 14 does not eliminate the estimated coupling residual. Full three-current interpolation predicts held-out fluxes more accurately than either investigated constant-factor reduction. The results support treating the original replacement as an approximation with a limited operating range. Derivative-estimation sensitivity and measurement limitations remain part of this interpretation.
+A common two-coordinate representation of the stator flux linkages of an electrically excited synchronous machine is investigated. The conventional shift $s=i_d+k i_e$ is exact only when both flux components are constant along its discarded current direction. We derive the differential conditions and distinguish them from constant-flux contour statistics. Three acquisition datasets are rebuilt with one stationary voltage-based processing procedure. Seven reduced models, from one constant factor to a bounded five-parameter current-dependent shift, are compared with a full three-current reference by shared-table reconstruction, independent shifted-surface comparison and nested whole-excitation-group prediction. The conventional model's joint prediction RMSE is 6.00--6.97 mVs. Two constant axis-shift factors reduce it to 5.49--6.53 mVs with two parameters, whereas the full three-current reference achieves 1.48--1.79 mVs on identical supported points. More flexible shifts have machine-dependent advantages and do not close this accuracy gap. Two constant axis factors provide a simple reduced-model compromise; retaining excitation is preferable when accuracy dominates memory. Derivative residuals, flux errors and numerical effects are interpreted separately. No complete permanent-magnet-machine equivalence or calibrated physical error floor is inferred.
 \end{abstract}
 
-\section{Introduction and scope}
-The practical objective is to represent an EESM stator flux map using the two current axes of a PSM-like lookup table. The existing MeasEval procedure combines the physical d-axis and excitation currents,
-\begin{equation}\label{eq:shift}
-s=i_d^*=i_d+k_0i_e,
+\section{Problem, evidence and scope}
+An electrically excited synchronous machine has three independently adjustable currents, whereas many compact stator-flux lookup tables have two current axes. The practical question is whether excitation can be absorbed into a shift of the stator-current coordinates without losing information about \emph{both} stator flux linkages:
+\begin{equation}\label{eq:start}
+\psi_d=\psi_d(i_d,i_q,i_e),\quad \psi_q=\psi_q(i_d,i_q,i_e),\qquad s=i_d+k i_e.
 \end{equation}
-and interpolates measured stator fluxes over \((s,i_q)\). Experimental EESM flux-map identification and its importance for current-model flux estimation are discussed by Turk et al.~\cite{turk}.
+Throughout this paper, ``lossless'' means only lossless with respect to these two functions. It does not mean a lossless physical machine. No additional magnetic scalar model is introduced.
 
-The question here is whether \emph{both} stator flux functions can be described by the \emph{same} two coordinates over the investigated domain. The supplied \emph{Motor Model} note~\cite{note} provides the starting point. Its voltage equations, flux differentials, constant-flux construction, integration step, and determinant condition are developed below. The analysis uses measured stator flux functions directly. No rotor-flux reconstruction or additional magnetic scalar model is used.
+Measured EESM flux identification requires attention to voltage measurement and machine nonlinearities; an experimental procedure for a double-stator EESM is described by Turk et al.~\cite{turk}. That work supports the measurement context, not the specific coordinate reduction examined here. Our reduction conditions are derived explicitly below and evaluated on the available measurements.
 
-A PSM-like flux table does not imply that the excitation circuit, torque law, and dynamics become those of a physical permanent-magnet machine. Section~\ref{sec:physical} distinguishes these statements.
+We first explain the existing contour estimator, then derive exactness conditions. Their estimated violations motivate a hierarchy of restricted coordinate models. Two experiments address different questions: a shared-table reconstruction asks how much error remains after merging and storage; a whole-group prediction asks whether an unseen excitation level can be represented without fitting to it. A separate comparison between shifted original surfaces checks compatibility before merging. The complete per-group visual record is supplied in a companion atlas.
 
-\section{Coordinates, voltage equations, and differential inductances}
-Let
-\[
-\ii=(i_d,i_q,i_e)^{\mathsf T},\qquad
-\ps(\ii)=\begin{bmatrix}\psi_d(\ii)\\\psi_q(\ii)\end{bmatrix}.
-\]
-Assume continuously differentiable stator flux functions on an open current domain \(\Omega\). The handwritten voltage convention is
+\section{Data and stationary flux reconstruction}\label{sec:data}
+\subsection{Three datasets and their limits}
+Set 1 contains 7,476 operating points in 13 nominal excitation groups from 2 to 40 A at a requested 3,000 rpm. Set 2 contains 8,092 points in 14 groups from 0 to 40 A at 3,000 rpm. Their recorded constants are $p=3$, $R_s=0.013\ \Omega$ and $R_e=3.2\ \Omega$. These sets are treated as related measurement campaigns, not independent machines with established independent uncertainty.
+
+Set 3 contains 9,022 points in ten nominal excitation groups from 3 to 30 A at 2,250 rpm. Its constants are $p=4$, $R_s=0.0366185\ \Omega$ and $R_e=2.6\ \Omega$. It is a separate machine configuration. All parameters are identified separately; agreement of a procedure across machines would not imply transfer of the same numerical factor. The absence of an earlier flux export is addressed by processing the acquisition channels directly.
+
+The saved input records already contain electrical-period averages of dq voltages and currents. They are not voltage waveforms sampled anew for this investigation. Repeated acquisitions are averaged arithmetically by file, requested speed, nominal excitation and operating-point index. Index-zero records indicate no assigned operating point; 284 such acquisition records are excluded from Set 3. The same averaging is used for every set, without a new outlier-selection rule. The three Set 1 files retain their separate acquisition identities before their operating points are pooled.
+
+Nominal excitation labels define groups only. All transformations, flux calculations and derivative estimates use measured $i_d,i_q,i_e$. Tracking differences, measured excitation ranges, repetition counts, speed ranges and temperature channels are exported per group. Set 1/2 stator temperature channels span approximately 50--80 $^\circ$C; Set 3 spans approximately 40--104 $^\circ$C. Set 3's recorded rotor-temperature channel includes negative values near $-85\ ^\circ$C and is not accepted as a calibrated rotor-temperature history. No temperature correction is inferred from these channels. A current-only map can therefore also absorb variation due to unmodelled temperature or acquisition effects.
+
+After repetition averaging, mechanical-speed telemetry spans approximately 2,934--3,072 rpm in Set 1, 2,933--3,071 rpm in Set 2 and 2,247--2,252 rpm in Set 3. The flux calculation uses the separately recorded electrical angular-speed channel. Requested speed does not replace this measurement. The recorded current-sensor delays also differ between Sets 1 and 2; this is an acquisition difference, not an identified cause of a reduction error.
+
+\subsection{Conventions and source of the flux values}
+The stationary dq convention is
 \begin{align}
-u_d&=R_s i_d+\dot\psi_d-\omega_e\psi_q,\\
+u_d&=R_s i_d+\dot\psi_d-\omega_e\psi_q,&
 u_q&=R_s i_q+\dot\psi_q+\omega_e\psi_d,\\
-u_e&=R_e i_e+\dot\psi_e.
+\omega_e&=p\omega_m.&
 \end{align}
-For \(\bm\psi=(\psi_d,\psi_q,\psi_e)^{\mathsf T}\), equivalently
-\begin{equation}
-\dot{\bm\psi}=\begin{bmatrix}u_d\\u_q\\u_e\end{bmatrix}
-+\begin{bmatrix}0&\omega_e&0\\-\omega_e&0&0\\0&0&0\end{bmatrix}\bm\psi
--\operatorname{diag}(R_s,R_s,R_e)\ii.
-\end{equation}
-At a stationary operating point with nonzero speed,
-\begin{equation}\label{eq:stationary}
+At nonzero steady speed, the source flux values are calculated as
+\begin{equation}\label{eq:flux}
 \psi_d=\frac{u_q-R_s i_q}{\omega_e},\qquad
 \psi_q=\frac{R_s i_d-u_d}{\omega_e}.
 \end{equation}
-Here \(\omega_e=p\omega_m\) is electrical angular speed. Arithmetic agreement with~\eqref{eq:stationary} would not by itself establish sensor calibration.
+Measured electrical angular speed and measured dq voltages are used, rather than requested speed or controller voltage commands. The stored stator-resistance channel supplies $R_s$. The signs and source channels agree with the current corrected evaluation source. Its differential-inductance assignment was also inspected: derivatives of $\psi_d$ with respect to $i_q$ are $L_{dq}$, while derivatives of $\psi_q$ with respect to $i_d$ are $L_{qd}$. Older saved inductance arrays are not reused as measurements of these derivatives.
 
-Define differential inductances by output first, input second:
+The dq channels follow the existing amplitude-based machine convention; they are not reinterpreted as phase RMS values. In Set 1/2, the median ratio $\sqrt{i_d^2+i_q^2}/(\sqrt{2}I_{\mathrm{phase,rms}})$ is approximately 0.995, consistent with this convention within acquisition differences. Set 3 lacks that RMS comparison channel and the recorded phase-selector metadata, so its amplitude convention is inherited from the same dq channel definitions rather than independently verified. A conventional three-phase amplitude-invariant torque formula is used only in Section~\ref{sec:physical} to explain coordinate substitution. This study does not independently calibrate the Park transformation, sensor gains, timing, resistance, inverter voltage or rotational losses. Agreement with~\eqref{eq:flux} establishes arithmetic consistency, not absolute flux accuracy. Flux is expressed in Vs, with reported errors in mVs; $1\ \mathrm{Vs}=1\ \mathrm{Wb}$ for these linkage units.
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{geometry_set2.png}
+\caption{Original and independently transformed Set 2 meshes using the conventional factor. Colour identifies excitation groups. Open meshes keep overlapping excitation levels visible. The transformation changes coordinates, not source flux values. Separate transformed surfaces have not yet been replaced by one shared table.}\label{fig:geometry}\end{figure}
+
+\section{What the conventional contour factor estimates}\label{sec:estimator}
+\subsection{A local constant-flux displacement}
+Define all differential inductances with the output index first:
+\begin{equation}\label{eq:L}
+L_{xy}=\frac{\partial\psi_x}{\partial i_y},\qquad x\in\{d,q\},\quad y\in\{d,q,e\}.
+\end{equation}
+A partial derivative changes one input and holds the other two fixed. Thus $L_{de}$ measures the change in d-flux due to excitation with both stator currents fixed; it is not a derivative along an arbitrary contour-search path. Assuming continuously differentiable fluxes,
 \begin{equation}
-L_{xy}=\frac{\partial\psi_x}{\partial i_y},\qquad x,y\in\{d,q,e\}.
+\dd\psi_d=L_{dd}\dd i_d+L_{dq}\dd i_q+L_{de}\dd i_e.
 \end{equation}
-The full handwritten differential relation is
-\begin{equation}\label{eq:fullL}
-\dd\bm\psi=
-\begin{bmatrix}L_{dd}&L_{dq}&L_{de}\\L_{qd}&L_{qq}&L_{qe}\\L_{ed}&L_{eq}&L_{ee}\end{bmatrix}
-\begin{bmatrix}\dd i_d\\\dd i_q\\\dd i_e\end{bmatrix}.
-\end{equation}
-Only the first two rows are identified here. A measured stator map does not supply the third row. No symmetry of this matrix is required for the coordinate argument. The relevant Jacobian is
-\[
-J_s=\begin{bmatrix}L_{dd}&L_{dq}&L_{de}\\L_{qd}&L_{qq}&L_{qe}\end{bmatrix}.
-\]
-Flux linkage is expressed in Wb, current in A, and differential inductance in H. The factor has unit A/A and is dimensionless. Its interpretation depends on the current-coordinate convention; it is not automatically a measured geometric winding-turn ratio.
-
-\section{Derivation from constant flux linkage}\label{sec:contours}
-\subsection{Constant d-axis flux}
-From
-\[
-\dd\psi_d=L_{dd}\dd i_d+L_{dq}\dd i_q+L_{de}\dd i_e,
-\]
-a constant-\(\psi_d\) curve parameterized by \(i_e\), with \(L_{dd}\ne0\), gives
+On a constant-$\psi_d$ path, with $L_{dd}\ne0$, the implicit-function theorem gives
 \begin{equation}\label{eq:drift}
-\boxed{-\frac{\dd i_d}{\dd i_e}=
-\frac{L_{dq}}{L_{dd}}\frac{\dd i_q}{\dd i_e}+\frac{L_{de}}{L_{dd}}.}
+-\frac{\dd i_d}{\dd i_e}=\frac{L_{de}}{L_{dd}}+
+\frac{L_{dq}}{L_{dd}}\frac{\dd i_q}{\dd i_e}.
 \end{equation}
-Motion in \(i_q\) contributes to the observed d-current displacement. If \(i_q\) is additionally fixed, the implicit-function theorem yields
-\begin{equation}\label{eq:kd}
-k_d^{(\psi_d)}:=-\left.\frac{\partial i_d}{\partial i_e}\right|_{\psi_d,i_q}
-=\frac{L_{de}}{L_{dd}}.
-\end{equation}
-When this quotient is constant along the curve,
-\[
-\dd i_d=-k_0\dd i_e,\qquad \dd(i_d+k_0i_e)=0.
-\]
-Integration gives
-\begin{equation}
-i_d+k_0i_e=C_d(\psi_d,i_q).
-\end{equation}
-The integration constant depends on the quantities held fixed. Constancy along one contour does not establish the same constant on every contour.
+At fixed $i_q$, only the first term remains. If $i_q$ moves, cross-coupling contributes the second term. This is one possible bias in interpreting a contour statistic as a fixed-$i_q$ derivative. It is not a demonstration that all observed errors come from $i_q$ drift.
 
-\subsection{Constant q-axis flux}
-Likewise
-\[
-\dd\psi_q=L_{qd}\dd i_d+L_{qq}\dd i_q+L_{qe}\dd i_e.
-\]
-At fixed \(\psi_q,i_q\), and \(L_{qd}\ne0\),
-\begin{equation}\label{eq:kqflux}
-k_d^{(\psi_q)}:=-\left.\frac{\partial i_d}{\partial i_e}\right|_{\psi_q,i_q}
-=\frac{L_{qe}}{L_{qd}}.
-\end{equation}
-This is a second estimate of a \emph{d-axis} shift. A small \(L_{qd}\) makes the quotient sensitive to derivative errors: for \(k=v/u\),
-\[
-\delta k\simeq\frac{\delta v}{u}-\frac{v}{u^2}\delta u.
-\]
-A large ratio can therefore arise from weak identifiability.
-
-If the same constant \(k_0\) applies to this q-flux construction, integration gives
-\[
-i_d+k_0i_e=C_q(\psi_q,i_q).
-\]
-Where the respective flux functions are locally invertible in the shifted
-d-coordinate, the handwritten integration constants satisfy
-\[
-C_d(\psi_d,i_q)=C_q(\psi_q,i_q)=s.
-\]
-The two inverse functions have different flux arguments. This equality concerns
-their values at corresponding operating points, not an identity of the
-two inverse functions on arbitrary independent flux arguments.
-
-\subsection{The four candidates in the existing script}
-The finite-contour script also explores q-current shifts at fixed \(i_d\). Its four candidates have the differential counterparts
-\begin{equation}\label{eq:four}
-\begin{array}{ll}
-k_d^{(\psi_d)}=L_{de}/L_{dd},&k_d^{(\psi_q)}=L_{qe}/L_{qd},\\[2pt]
-k_q^{(\psi_d)}=L_{de}/L_{dq},&k_q^{(\psi_q)}=L_{qe}/L_{qq},
-\end{array}
-\end{equation}
-where each denominator must be nonzero. The subscript identifies the current axis that moves; the superscript identifies the constant flux component. In particular, the q-flux ratio in equation~\eqref{eq:kqflux} remains a d-shift candidate. The q-shift candidates investigate another direction and are not simultaneous components of an already identified transformation.
-
-\subsection{Finite differences and midpoint assignment}
-The existing script compares neighboring nominal excitation groups. At a prescribed center \(m\) and fixed \(i_q\), it finds
-\begin{equation}
-\psi_x(m+\delta/2,i_q,i_{e,A})=
-\psi_x(m-\delta/2,i_q,i_{e,B}),\qquad x\in\{d,q\},
-\end{equation}
-and assigns
+For finite endpoints on the same differentiable path,
 \begin{equation}\label{eq:secant}
-k_{\mathrm{sec}}=-\frac{i_{d,B}-i_{d,A}}{i_{e,B}-i_{e,A}}
-=\frac{\delta}{i_{e,B}-i_{e,A}}
+-\frac{\Delta i_d}{\Delta i_e}=\frac{1}{\Delta i_e}
+\int_{i_{e,1}}^{i_{e,2}}\left(\frac{L_{de}}{L_{dd}}+
+\frac{L_{dq}}{L_{dd}}\frac{\dd i_q}{\dd i_e}\right)\dd i_e.
 \end{equation}
-to the d-current midpoint \(m\). The denominator uses interpolated \emph{measured} excitation currents. The root with smallest \(|\delta|\) is retained if several exist. The q-axis construction is analogous with \(i_d\) fixed.
+A secant is a path average. It becomes a pointwise derivative only in a suitable limit. The assumptions fail where the implicit path is singular, disconnected or cannot be parameterized by $i_e$.
 
-If a smooth connected constant-flux branch can be parameterized by \(i_e\) between the endpoints, then
+\subsection{The actual averaging procedure}
+The conventional estimator orders complete groups by increasing nominal excitation. Within each group, it triangulates measured $(i_d,i_q)$ points, rejects unusually long edges, and finds edge intersections with 100 d-flux levels spanning the middle 25--75\% of the pooled d-flux range. It averages intersection coordinates, including measured excitation, at each level. Adjacent-group ratios are then formed:
+\begin{equation}\label{eq:legacy}
+k_A=\operatorname{mean}_{g,\ell}\left[
+\frac{|\bar i_{d,g+1,\ell}-\bar i_{d,g,\ell}|}
+{\bar i_{e,g+1,\ell}-\bar i_{e,g,\ell}}\right].
+\end{equation}
+Only finite, numerically nonzero ratios enter the arithmetic mean. The absolute numerator removes directional information. Excitation ordering matters because the denominator retains its sign. The present implementation follows this rule rather than assuming an unsigned denominator or a geometrical turns ratio.
+
+All intersection points lie on the interpolated contour, but their coordinate centroid generally does not: for a nonlinear function, evaluating it at the mean coordinate is not equivalent to averaging its values. Consequently, even~\eqref{eq:secant} need not apply to the two selected centroids. Their mean $i_q$ can also differ between groups. Triangulation, contour-level choice, sample density, coverage, edge filtering and the unweighted average of ratios all affect $k_A$. Points near densely intersected edges receive a different effective influence from points in sparsely sampled parts of a contour. Excluding the outer flux quarters during estimation does not validate applying the result there.
+
+For a generic ratio $r=A/B$, first-order uncertainty propagation is
 \begin{equation}
-k_{\mathrm{sec}}=\frac{1}{i_{e,B}-i_{e,A}}
-\int_{i_{e,A}}^{i_{e,B}}k_d^{(\psi_x)}(\ii(i_e))\,\dd i_e.
+\delta r\simeq \frac{\delta A}{B}-\frac{A\,\delta B}{B^2},\qquad
+\operatorname{var}(r)\simeq\frac{\sigma_A^2}{B^2}
++\frac{A^2\sigma_B^2}{B^4}-\frac{2A\operatorname{cov}(A,B)}{B^3}.
 \end{equation}
-This path average need not equal the differential ratio at the arithmetic midpoint. Endpoints alone do not prove membership of the same smooth branch. The two flux-derived secants can follow different paths and have different mean measured excitation currents. Their mesh difference is a finite-step diagnostic, not a determinant evaluation at one identical 3D point.
+The inverse powers of $B$ explain why a small excitation difference or small inductance denominator makes a ratio sensitive. If the denominator vanishes, the desired factor may be unidentifiable rather than merely large. Unweighted averaging does not remove this sensitivity.
 
-\section{A common constant coordinate reduction}\label{sec:common}
-Suppose
-\begin{equation}\label{eq:reduced}
-\psi_d=f(s,i_q),\qquad\psi_q=g(s,i_q),\qquad s=i_d+k_0i_e.
-\end{equation}
-The chain rule gives \(L_{dd}=f_s\), \(L_{de}=k_0f_s\),
-\(L_{qd}=g_s\), and \(L_{qe}=k_0g_s\). It requires the \emph{same} constant in
-\begin{equation}\label{eq:common}
-\boxed{L_{de}=k_0L_{dd},\qquad L_{qe}=k_0L_{qd}.}
-\end{equation}
-The d-flux condition alone does not establish the q-flux condition.
+Method B below keeps the query $i_q$ fixed while aligning d-flux cuts through a shared table. It avoids the moving contour centroid. It still has sampling and interpolation effects, and optimizing d-flux alone does not establish a common reduction of both components.
 
-\begin{proposition}[Constant shift]
-For fixed \(k_0\), equations~\eqref{eq:common} are locally necessary and sufficient for~\eqref{eq:reduced}. They are globally sufficient if sections of the domain with fixed \((s,i_q)\) are connected.
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{contours_set2.png}
+\caption{Set 2 contour statistics. Each curve represents a group or adjacent-group pair. The signed and absolute-numerator secants differ only when the d-displacement changes direction. The lower panels show q-current drift and the departure of contour centroids from the selected d-flux level. These centroids are not constant-flux samples at fixed q-current.}\label{fig:contours}\end{figure}
+
+\section{Exact reduction: local and global statements}\label{sec:exact}
+Let $\Omega\subset\mathbb R^3$ be open, let $\ps=(\psi_d,\psi_q)^\mathsf T\in C^1(\Omega)$, and define
+\begin{equation}
+\pi_k(i_d,i_q,i_e)=(i_d+k i_e,i_q)=(s,q).
+\end{equation}
+The reduction is exact if a single-valued $C^1$ function $\bm F$ exists with
+\begin{equation}\label{eq:factorization}
+\ps(\bm i)=\bm F(\pi_k(\bm i)).
+\end{equation}
+In plain terms, any two supported operating points with the same reduced coordinates must demand the same \emph{pair} of flux values.
+
+\begin{proposition}\label{prop:exact}
+For a prescribed constant $k$, exact factorization implies
+\begin{equation}\label{eq:both}
+L_{de}=kL_{dd},\qquad L_{qe}=kL_{qd}.
+\end{equation}
+Conversely, these identities imply local factorization. They imply global factorization on $\pi_k(\Omega)$ if every nonempty fibre of $\pi_k$ in $\Omega$ is connected. More generally, disconnected fibre components must additionally have equal flux values.
 \end{proposition}
 \begin{proof}
-Use the invertible change \((i_d,i_q,i_e)=(s-k_0e,q,e)\). For \(\widehat{\ps}(s,q,e)=\ps(s-k_0e,q,e)\),
-\begin{equation}\label{eq:transverse}
-\left.\frac{\partial\widehat{\ps}}{\partial e}\right|_{s,q}
-=\begin{bmatrix}L_{de}-k_0L_{dd}\\L_{qe}-k_0L_{qd}\end{bmatrix}.
+At fixed $(s,q)$ write $i_d=s-k i_e$. The chain rule gives
+\begin{equation}\label{eq:chain}
+\left.\frac{\partial\ps(s-k i_e,q,i_e)}{\partial i_e}\right|_{s,q}
+=\begin{bmatrix}L_{de}-kL_{dd}\\L_{qe}-kL_{qd}\end{bmatrix}.
 \end{equation}
-If this vanishes, \(\widehat{\ps}\) is independent of \(e\) on each connected section and depends only on \(s,q\). Conversely, such independence implies the vanishing derivative. Connected sections prevent disconnected branches from having different fluxes at the same reduced coordinates.
+If~\eqref{eq:factorization} holds, varying the discarded coordinate cannot change either output, so both entries vanish. Conversely, zero derivative makes each output constant on each connected interval of a fibre. The map $(i_d,i_q,i_e)\mapsto(s,q,i_e)$ is an invertible linear coordinate change. Locally, the flux therefore does not depend on its third coordinate. Connected fibres make the local values agree globally. Because the projection is a submersion, these locally defined $C^1$ functions descend to the open reduced domain.
 \end{proof}
-Fixed \(i_q\) was needed for the constant-flux integration. Once established, representation~\eqref{eq:reduced} itself permits varying \(i_q\) through the second argument of \(f,g\).
+Connectedness of the full domain alone is insufficient if a fibre has separated components. No nonzero $L_{dd}$ is needed for the proposition itself; that assumption was needed for the contour slope. To identify a unique factor from the two flux derivatives, however, the sensitivity vector below must be nonzero. If both sensitivity and excitation-coupling vectors vanish, any $k$ satisfies the local constraint. If only the sensitivity vanishes, a nonzero excitation coupling cannot be compensated by a d-shift.
 
-\subsection{Local proportionality and the determinant}
-Define
-\[
-\avec=\begin{bmatrix}L_{dd}\\L_{qd}\end{bmatrix},\qquad
-\bvec=\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}.
-\]
-A local d-axis factor satisfies \(\bvec=k\avec\), hence
-\begin{equation}\label{eq:det}
-\Delta_L=\det[\avec\ \bvec]=L_{dd}L_{qe}-L_{qd}L_{de}=0.
-\end{equation}
-If \(\avec\ne0\), the determinant condition is sufficient for a unique local factor. If \(\avec=0,\bvec\ne0\), the determinant still vanishes but no finite factor exists. If both vanish, the factor is unidentifiable. An isolated \(L_{qd}=0\) does not prevent identification from \(L_{de}/L_{dd}\) when \(L_{dd}\ne0\); common reduction then also requires \(L_{qe}=0\).
-
-Since \(\Delta_L\) has unit \(\mathrm H^2\), use nonzero vector norms to define
-\begin{equation}\label{eq:eta}
-\eta=\frac{|\Delta_L|}{\norm{\avec}\norm{\bvec}},\qquad0\leq\eta\leq1.
-\end{equation}
-This is the absolute sine of the angle between the vectors. Parallel and antiparallel vectors both give zero; the factor's sign must still be retained. Negligible vectors make this angular diagnostic unreliable rather than proving zero coupling.
-
-\subsection{Joint local and global factors}
-Minimizing \(\norm{\bvec-k\avec}^2\), with derivative
-\(-2\avec^{\mathsf T}\bvec+2k\avec^{\mathsf T}\avec\), gives
-\begin{equation}\label{eq:ls}
-\boxed{k_{\mathrm{LS}}=\frac{\avec^{\mathsf T}\bvec}{\avec^{\mathsf T}\avec}.}
-\end{equation}
-The residual is orthogonal to \(\avec\). For two nonzero vectors in two dimensions,
-\begin{equation}\label{eq:etares}
-\frac{\norm{\bvec-k_{\mathrm{LS}}\avec}}{\norm{\bvec}}=\eta.
-\end{equation}
-Thus the normalized determinant measures the coupling component that no scalar d-axis compensation can remove. For points \(j\) with weights \(w_j>0\), the best global factor is
-\begin{equation}\label{eq:global}
-k_G=\frac{\sum_jw_j\avec_j^{\mathsf T}\bvec_j}{\sum_jw_j\norm{\avec_j}^2}.
-\end{equation}
-It is not the arithmetic mean of local factors: large-\(\norm{\avec}\) points receive greater effective weight. The numerical analysis uses \(w_j=1\) at retained measured points, not uniform current-volume weights. Report the relative global derivative residual
-\begin{equation}\label{eq:rho}
-\rho(k)=\sqrt{\frac{\sum_j\norm{\bvec_j-k\avec_j}^2}{\sum_j\norm{\bvec_j}^2}}.
-\end{equation}
-The same expression using each local \(k_{\mathrm{LS},j}\) defines \(\rho_{\mathrm{local}}\). These are estimated-derivative residuals, not direct measurement uncertainties.
-
-\section{Requirements for a variable factor}\label{sec:variable}
-If a smooth \(k(\ii)\) satisfies \(\bvec=k\avec\), both fluxes are constant along \(V=\partial_{i_e}-k(\ii)\partial_{i_d}\), with \(Vi_q=0\). A replacement coordinate must satisfy
-\begin{equation}\label{eq:pde}
-Vh=0,\qquad\text{or}\qquad h_{i_e}=k h_{i_d}.
-\end{equation}
-With \(h_{i_d}\ne0\), this constructs a local coordinate in a smooth characteristic chart. A global coordinate needs suitable branch and domain conditions in addition.
-
-Simply inserting \(k(\ii)\) into \(h=i_d+i_e k(\ii)\) gives
-\begin{equation}\label{eq:variabletest}
-Vh=i_e(k_{i_e}-k k_{i_d}).
-\end{equation}
-This particular expression works only when the right-hand side vanishes and the coordinate stays invertible. A special admissible case is \(k=k(i_q)\); its q-dependence still contributes when \(i_q\) varies.
-
-For a nondimensional counterexample, let
-\[
-\psi_d=d+e^2,\qquad\psi_q=2(d+e^2)+q.
-\]
-Then \(\avec=(1,2)^{\mathsf T}\), \(\bvec=2e\avec\), and the determinant vanishes everywhere. Nevertheless \(k=2e\) is not a global constant. The correct coordinate is \(d+e^2\); inserting the ratio into \(d+k e\) instead gives \(d+2e^2\). Local proportionality, a variable invariant, and a globally constant shift are different statements.
-
-\section{Numerical identification procedures}\label{sec:numerics}
-\subsection{Measurements and conventions}
-\DataTable
-Both evaluated datasets use the same documented machine parameters: three pole pairs and \(R_s=0.013\,\mathrm{\Omega}\). Set 1 and Set 2 contain different operating-point records; their agreement is not an independently established uncertainty bound. The \texttt{Meas} channels have already undergone GUI processing, including averaging and stator flux calculation. They are inputs to this investigation rather than unprocessed acquisition waveforms. Actual measured \(i_d,i_q,i_e\) are used throughout. Nominal excitation labels specify groups only.
-
-Only the requested speed group 3000 in rpm is used. The data do not provide a controlled same-machine cross-speed comparison. Set 3 has different documented machine parameters and no corresponding evaluated flux file; it is excluded.
-
-\subsection{Reproducing the original MeasEval estimate}
-For each nominal excitation group, triangulate measured \((i_d,i_q)\). Retain unique edges with squared length below nine times the mean squared edge length. Evaluate 100 equally spaced d-flux levels between 25 and 75 percent of the full d-flux range. Linear edge intersections supply \(i_d,i_q,i_e\) at each level. Their arithmetic means are denoted \(\bar i_d,\bar i_q,\bar i_e\). Sort groups in increasing nominal excitation and calculate
+\subsection{Determinant, direction and joint regression}
+At one operating point define
 \begin{equation}
-k_{\mathrm{ME}}=\operatorname{mean}_{g,\ell}
-\frac{|\bar i_{d,g+1,\ell}-\bar i_{d,g,\ell}|}
-{\bar i_{e,g+1,\ell}-\bar i_{e,g,\ell}},
+\bm a=\begin{bmatrix}L_{dd}\\L_{qd}\end{bmatrix},\quad
+\bm b=\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix},\quad
+\Delta=L_{dd}L_{qe}-L_{qd}L_{de}.
 \end{equation}
-after removing nonfinite and effectively zero ratios. The reproduced values are
-\[
-k_{\mathrm{ME},1}=13.490937384742,\qquad
-k_{\mathrm{ME},2}=13.516845982317.
-\]
-This reproduces an algorithmic statistic, not a geometric turns ratio or a fixed-\(i_q\) differential ratio.
-
-There are two distinct averaging effects. First, \(\bar i_q\) can move between groups, as anticipated by~\eqref{eq:drift}. Second, the mean of points on a curved level set generally lies off that level set. Taylor expansion about the mean cancels the averaged linear term but leaves curvature terms. Thus~\eqref{eq:drift} cannot be applied to arbitrary contour centroids as though they formed an exact constant-flux trajectory. Edge density, finite contour coverage, the chosen flux interval, the absolute value, and the final averaging all affect the statistic.
-
-\subsection{Independent local affine flux fits}
-The new \texttt{validate\_winding\_factor.m} script estimates the two stator flux functions independently. For a measured query point \(\ii_0\), normalize each current by its observed range \(s_r\). Among the \(n\) nearest points in normalized Euclidean distance, solve
-\begin{equation}\label{eq:fit}
-\begin{split}
-&\min_{\bm c,B}\sum_{j\in N_n(\ii_0)}w_j
- \norm{\ps(\ii_j)-\bm c-B^{\mathsf T}\bm z_j}^2,\\
-&z_{j,r}=\frac{i_{j,r}-i_{0,r}}{s_r},\qquad
- w_j=\exp\left(-\frac{\norm{\bm z_j}^2}{d_{\max}^2}\right).
-\end{split}
+The columns describe the two-output response to d-current and excitation current. The determinant is their signed parallelogram area, in H$^2$. If $\bm a\ne0$, $\Delta=0$ means that $\bm b$ is parallel or antiparallel to $\bm a$: some local scalar factor can compensate excitation. It does not establish that this factor is constant throughout the domain. The normalized measure
+\begin{equation}\label{eq:eta}
+\eta=\frac{|\Delta|}{\norm{\bm a}\norm{\bm b}}=|\sin\theta|
 \end{equation}
-Here \(d_{\max}^2\) is the largest squared neighborhood distance. Transform slopes back to physical units using \(L_{xr}=B_{rx}/s_r\). The calculation uses the weighted design matrix and MATLAB's backslash solve. A QR-factor reciprocal condition estimate below \(10^{-6}\), or fewer than two nominal excitation groups in the neighborhood, causes the estimate to be omitted.
+is dimensionless and undefined when either vector vanishes. It quantifies directional disagreement, not a percentage of flux error. A value of 0.1 is not a validated 10\% flux error.
 
-Use \(n=40\) for the primary evaluation and \(n=20,80\) for sensitivity. Neighborhood size was specified before examining held-out errors. The affine fit averages local curvature and noise; its slopes are neither exact physical derivatives nor derivatives of the original piecewise-linear MeasEval triangulation.
+For a positive weight matrix $W$, the local weighted least-squares factor and the global constant counterpart are
+\begin{equation}\label{eq:ls}
+k_{\mathrm{loc}}=\frac{\bm a^\mathsf TW\bm b}{\bm a^\mathsf TW\bm a},\qquad
+k_{\mathrm{glob}}=\frac{\sum_j\bm a_j^\mathsf TW\bm b_j}{\sum_j\bm a_j^\mathsf TW\bm a_j}.
+\end{equation}
+Here $W=I$ is used. The global factor weights locations with large d-current sensitivity more strongly; it is not generally the arithmetic mean or median of local factors. The derivative residual $\bm b-k\bm a$ has units H. Its relative aggregate norm
+\begin{equation}
+\rho(k)=\frac{\left(\sum_j\norm{\bm b_j-k\bm a_j}^2\right)^{1/2}}
+{\left(\sum_j\norm{\bm b_j}^2\right)^{1/2}}
+\end{equation}
+is dimensionless. Neither quantity is a flux RMSE. Integrating a derivative residual along a specified finite path would require its location, direction and path length; a norm alone does not provide the resulting flux error. Minimizing $\rho$ therefore need not minimize reconstruction or prediction RMSE.
 
-For \(k_{\mathrm{LS}}\), retain points with \(\norm{\avec}>0.1\,\operatorname{median}\norm{\avec}\). Each separate ratio uses the analogous 10-percent median threshold for its own denominator magnitude. For \(\eta\), also require \(\norm{\bvec}\geq0.1\,\operatorname{median}\norm{\bvec}\). Medians use available estimates within the given dataset and neighborhood size. Undefined values remain missing. For neighborhood sensitivity, recompute the global factors and residuals on the intersection of valid points for all three neighborhood sizes.
+\subsection{How the derivatives are estimated}
+At each measured current point we fit both flux components to separate local affine functions of the three currents. Current coordinates are range-normalized. The nearest 40, 80 or 120 points enter a Gaussian-distance-weighted least-squares fit; the primary count is 80. A neighborhood must contain at least two excitation groups, and ill-conditioned local designs are omitted. The fitted slopes are converted back to H. Low d-sensitivity vectors are excluded from joint-factor identification, and small component denominators are excluded from the separate ratios. The thresholds are numerical conditioning rules relative to the median sensitivity, not physical validity bounds.
 
-\subsection{Predicting whole missing excitation groups}\label{sec:holdout}
-For each \emph{interior} nominal excitation group, remove that group's complete measurements. Build three predictors using the remaining groups:
-\begin{enumerate}
-\item linear 2D interpolation over \((i_d+k_{\mathrm{ME,train}}i_e,i_q)\);
-\item the same 2D interpolation with the training-only global factor \(k_{G,\mathrm{train}}\);
-\item linear 3D interpolation over the physical currents normalized by their training ranges.
-\end{enumerate}
-Both factors are estimated again using training data only. The global factor uses 40-neighbor fits on that training set. MATLAB \texttt{scatteredInterpolant} is used with linear interpolation and no extrapolation~\cite{matlab}. The 2D predictors use physical current units for triangulation, as in the original merged map; the 3D predictor uses the stated normalization. This compares specified interpolation procedures, not all possible reduced and full models.
+Local regression estimates a slope from a neighborhood and generally does not interpolate every sample. This is the basic distinction motivating local fitting~\cite{cleveland}. A radial-basis interpolant instead forms a weighted sum of distance kernels, with coefficients typically obtained from a global interpolation system; it is neither this local affine regression nor an independent measurement of inductance. No RBF replacement is used here. Neighbor count, noise, curvature and uneven sampling affect all reported derivatives. The sensitivity comparison uses common retained derivative points across neighborhood counts.
 
-Within each fold, assess only points supported by all three predictors. Aggregate those points over folds:
-\[
-\operatorname{RMSE}_x=\sqrt{\frac1N\sum_{j=1}^N
-(\widehat\psi_{x,j}-\psi_{x,j})^2}.
-\]
-Maximum absolute error is reported separately. The lowest and highest excitation groups are not held out: their removal would primarily require the 3D predictor to extrapolate outside its excitation range. Hence this evaluation establishes neither boundary-excitation prediction nor extrapolation accuracy.
+\section{Restricted improvements and their mathematical limits}\label{sec:models}
+\subsection{Constant and integrated shifts}
+Methods A, B and C all use $s=i_d+k i_e$, but estimate $k$ differently. A is~\eqref{eq:legacy}. B minimizes d-flux prediction error at the observed query $i_q$, with no contour-centroid motion. C minimizes prediction error of both flux components. C thus optimizes a flux criterion rather than~\eqref{eq:ls}. It is a numerical minimum within a stated bounded search, not a proof of a global optimum over all coordinate functions.
 
-\subsection{Separating the raster roundtrip}
-For each dataset, construct one all-data reduced scattered field using the reproduced \(k_{\mathrm{ME}}\). Evaluate it on square rasters with 101, 201, and 401 nodes per axis, spanning projected measured-coordinate bounds. Return to the original projected points using bilinear interpolation on each raster. Use the same intersection of finite returned points at all resolutions.
+For $s=i_d+a(i_e)$, exactness requires $\bm b=a'(i_e)\bm a$. A differential factor is a local slope, while $a$ is the accumulated shift:
+\begin{equation}\label{eq:integral}
+a(i_e)=\int_0^{i_e}k_{\mathrm{diff}}(\xi)\dd\xi,\qquad a(0)=0.
+\end{equation}
+In general $a(i_e)\ne i_e k_{\mathrm{diff}}(i_e)$. The zero-excitation reference is a coordinate gauge and does not claim that zero excitation was measured in every dataset.
 
-This isolates the added raster-and-return operation. It does not reproduce every saved GUI breakpoint or consumer interpolation policy, and it is not a holdout evaluation.
+Using fixed current scales $I_d,I_q,I_e$ determined from the training currents, define $D=i_d/I_d$, $Q=i_q/I_q$, $E=i_e/I_e$. We fit a deliberately small hierarchy:
+\begin{align}
+\text{D: }a(i_e)&=i_e(c_1+c_2 E),\label{eq:D}\\
+\text{E: }a(i_q,i_e)&=i_e(c_1+c_2 E+c_3 Q^2),\label{eq:E}\\
+\text{G: }a(i_d,i_q,i_e)&=i_e(c_1+c_2 E+c_3 Q^2+c_4 D+c_5 D^2).\label{eq:G}
+\end{align}
+All $c_j$ have units A/A. The chosen even q-dependence is a parsimonious saturation approximation, not an imposed exact machine symmetry. The number of coefficients is fixed before examining the final prediction groups. D is a continuous one-dimensional shift, not one independent translation per group. Its differential slope is $c_1+2c_2E$. E adds a continuous variation within each excitation group. Its local excitation slope is $c_1+2c_2E+c_3Q^2$, whereas the total shift is~\eqref{eq:E}.
 
-\section{Experimental results}\label{sec:results}
-\subsection{Derivative factors and common-direction residuals}
-\FactorTable
-\ResidualTable
-The global LS factor is greater than the original contour statistic in both datasets. The median local joint factor is smaller than the global factor because the latter weights high-sensitivity points more strongly. Separate q-flux ratios have a much wider distribution and depend on their denominator threshold. These estimators should not be expected to return the same number.
+For E, the identities $\bm b=a_e\bm a$ remain necessary. Its dependence on $q$ changes the reduced q-gradient but does not remove the requirement for a common d-compensation direction for both flux components. If that direction does not exist, fitting more values of a pure d-shift cannot arbitrarily remove the incompatibility.
 
-For the primary 40-neighbor estimates, changing from \(k_{\mathrm{ME}}\) to the best global derivative factor reduces \(\rho\) only modestly. Even the pointwise optimum leaves a nonzero aggregate residual. This is consistent with operating-point-dependent coupling and nonparallel \emph{estimated} vectors. It is not a noise-calibrated rejection of an exact underlying physical relation.
+\subsection{A shift of both stator-current axes}
+Method F introduces two constants in the \emph{same} coordinate transformation for both outputs:
+\begin{equation}
+s_d=i_d+k_d i_e,\qquad s_q=i_q+k_q i_e.
+\end{equation}
+The chain rule gives the necessary condition
+\begin{equation}\label{eq:twoaxis}
+\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}=
+\begin{bmatrix}L_{dd}&L_{dq}\\L_{qd}&L_{qq}\end{bmatrix}
+\begin{bmatrix}k_d\\k_q\end{bmatrix}.
+\end{equation}
+The same fibre argument supplies local sufficiency, with corresponding global fibre conditions. An invertible stator Jacobian allows a local vector of compensating slopes, but it does not imply that the same constants work everywhere. F is distinct from assigning separate d-axis shifts to $\psi_d$ and $\psi_q$. That latter construction uses different coordinates for different outputs and is not investigated here.
 
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{local_set2.png}
-\caption{Local diagnostics for the Set 2 group with nominal excitation current 20 in A. The lower panels show normalized determinant, constant-\(k_{\mathrm{ME}}\) residual magnitude, and the cross-inductance responsible for poor conditioning of \(L_{qe}/L_{qd}\). Values use actual measured currents. Missing estimates follow the stated neighborhood and denominator rules.}
-\label{fig:local}
-\end{figure}
+\subsection{The bounded three-current extension}
+G retains two reduced axes, $s=i_d+a(\bm i)$ and $q=i_q$, while allowing its shift to depend on all three currents. Define $k_{\mathrm{map}}=a/i_e$ by~\eqref{eq:G}; at $i_e=0$ its continuous formula is used. This is a transformation parameter, not automatically $k_{\mathrm{diff}}$. The full chain rule is
+\begin{equation}\label{eq:fullchain}
+\dot s=(1+i_e k_{\mathrm{map},i_d})\dot i_d+
+i_e k_{\mathrm{map},i_q}\dot i_q+
+(k_{\mathrm{map}}+i_e k_{\mathrm{map},i_e})\dot i_e.
+\end{equation}
+At fixed $(q,i_e)$ its inverse exists locally when
+\begin{equation}\label{eq:jac}
+s_{i_d}=1+\frac{i_e c_4}{I_d}+\frac{2i_e c_5i_d}{I_d^2}\ne0.
+\end{equation}
+The search enforces $s_{i_d}\ge0.25$ on the rectangular training-current box. Since~\eqref{eq:jac} is bilinear in $i_d,i_e$, checking its corner values bounds it throughout that box. Thus the d-coordinate is strictly monotone there for fixed other currents. Exact factorization still requires
+\begin{equation}
+\bm b=\frac{a_e}{1+a_{i_d}}\bm a.
+\end{equation}
+Nonparallel sensitivity vectors cannot be made parallel by this additional scalar freedom. The five-parameter form is a complexity comparison, not a construction capable of independently encoding every measurement. On an empirical group surface with varying measured $i_e(i_d,i_q)$, its projected triangles can nevertheless fold; this is a different check from~\eqref{eq:jac} and is reported separately.
 
-\subsection{Sensitivity to the derivative neighborhood}
-\SensitivityTable
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{sensitivity.png}
-\caption{Neighborhood sensitivity on identical retained current points within each dataset. The median local factor and global LS factor use different weighting rules.}
-\end{figure}
-The common-point comparison separates neighborhood-size effects from changing availability of evaluation points. The global factor remains near 14 under the investigated smoothing choices. Individual ratios and residuals remain neighborhood-dependent. This limited comparison supplies neither an optimal bandwidth nor a confidence interval for the true derivatives.
+\subsection{Full three-current reference and complexity}
+H uses $(i_d,i_q,i_e)$ directly, with no coordinate-reduction assumption. It retains an excitation axis and therefore a larger table. It is an accuracy reference rather than exact ground truth: it still depends on measurements, interpolation and storage. A--C have one fitted shift parameter; D and F have two; E has three; G has five; H has no shift parameter. All reduced methods store two $81\times81$ flux arrays. H stores two arrays with 81 nodes on each stator-current axis and a bounded excitation-axis node count. Actual node counts and double-precision flux storage are recorded with the results; finite-support masks and axis vectors add a small implementation-dependent overhead.
 
-\subsection{Predicting entire missing excitation groups}
-\PredictionTable
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{prediction_set1.png}\\[5pt]
-\includegraphics[width=\linewidth]{prediction_set2.png}
-\caption{Per-group holdout errors on common prediction support. Each point represents a whole excitation group omitted during fitting. Both factors are recomputed without that group.}
-\label{fig:prediction}
-\end{figure}
-Full 3D interpolation has lower aggregate d- and q-flux RMSE for both datasets. Replacing the contour factor by the global derivative factor improves the reduced predictors, but does not close the gap. Reducing a derivative residual and minimizing unseen flux error are different objectives.
+\section{Experiments and fair comparison}\label{sec:experiment}
+\subsection{Source values, surfaces, shared interpolant and stored raster}
+Four objects must be kept distinct: (i) fluxes calculated from averaged measurement channels; (ii) separate piecewise-linear original surfaces, one per nominal group; (iii) a shared scattered field after transformation; and (iv) a stored regular-grid lookup table sampled from that shared field. Original group surfaces also interpolate measured excitation as a third scalar output. A group therefore represents an excitation \emph{graph}, not an exactly constant measured-excitation plane.
 
-The observed difference also depends on interpolation geometry, coverage, noise, and the model classes used. It does not prove that no nonlinear two-coordinate representation could work. Common support retains 6238 of 6348 interior-group points in Set 1 and 6819 of 6936 in Set 2. Boundary excitation groups are excluded by construction. Appendix~\ref{app:folds} lists the fold counts and factors.
+For each model, every original measured current is transformed. A joint Delaunay triangulation is built in reduced coordinates, using all retained groups, and the two flux components are interpolated linearly on the same simplices. Exact coordinate duplicates are averaged. The field is sampled onto the common storage grid and queried again at each transformed physical operating point. In particular,
+\begin{equation}\label{eq:reconstruction}
+\widehat\psi_x(i_d,i_q,i_e)=\widehat F_x(i_d+k i_e,i_q),\qquad
+r_x=\widehat\psi_x-\psi_{x,\mathrm{source}}
+\end{equation}
+for A--C, with the corresponding coordinate map for the other methods. A shared approximation is actually constructed and queried; no identity obtained merely by shifting coordinates and shifting them back is counted as evidence.
 
-\subsection{Added rasterization error}
-\RasterTable
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{raster.png}
-\caption{Bilinear roundtrip error for the same all-data reduced scattered field at three raster resolutions. Each dataset uses one common point mask across resolutions. These are reconstruction errors, not the prediction errors of Figure~\ref{fig:prediction}.}
-\label{fig:raster}
-\end{figure}
-Increasing raster resolution reduces average return error. Substantial maximum errors remain, and individual maxima need not decrease monotonically. This establishes a processing contribution for the chosen interpolation path; it does not assign every discrepancy to an incorrect physical coordinate model.
+An interpolant passing through distinct transformed training nodes can reproduce all training values even when nearby excitation surfaces disagree. Such interpolation identity does not establish physical exactness of the reduction. Raster reconstruction deliberately evaluates the shared representation after a finite storage operation; the independent-surface and missing-group experiments address additional questions.
 
-At original scattered nodes the interpolant reproduces its training values by construction. Because all projected nodes can be distinct, that identity alone does not validate lossless 3D-to-2D reduction.
+Axes are normalized by their training ranges before triangulation. A simplex is rejected if any squared edge length exceeds nine times the mean squared length of the unique edges. Evaluation outside the retained support is missing, and a raster cell touching a missing node remains unavailable. This is a stated numerical support rule, not a calibrated physical domain. It avoids filling large unsupported gaps with artificial surfaces. Linear Delaunay interpolation and its scaling sensitivity are documented by MathWorks~\cite{matlab}. Primary comparisons normalize both the 2D and 3D coordinates; a raw-coordinate control is also run for both dimensions.
 
+Every reduced model uses 81 nodes per reduced axis. H uses 81 nodes per physical stator axis and between five and 21 excitation nodes, based on distinct rounded measured excitation values. Its realized dimensions are reported. A separate 41/81/161-node study changes only the rasterization of A. It is a numerical control, not a proposed remedy for a deficient coordinate model.
+
+Saved historical single-group tables require a separate coordinate convention. If a physical slice has merely been relabelled by a fixed reference offset $k e_g$, its proper query coordinate is $i_d+k e_g$, even when the measurement at that point has a different excitation. Applying a pointwise measured-current offset to that relabelled slice mixes two coordinate definitions. The primary experiments here rebuild the surfaces in physical coordinates and transform their points explicitly. A measured-versus-nominal excitation sensitivity calculation is provided, without conflating it with that metadata issue.
+
+\subsection{Independent comparison before merging}\label{sec:surfaces}
+For an ideal constant-excitation slice $e_g$, the shifted original is
+\begin{equation}
+\widetilde\psi_{x,g}(s,q)=\psi_{x,g}(s-k e_g,q).
+\end{equation}
+Compare two such functions at \emph{identical} reduced coordinates inside their common supported region. If their values differ, one single-valued shared function cannot match both exactly. For two scalar values $v_g,v_h$, any common value has a maximum absolute discrepancy of at least $|v_g-v_h|/2$; their unweighted mean minimizes the sum of squared discrepancies. This elementary observation concerns the compared surfaces, not an isolated physical error floor.
+
+The measured excitation varies within each actual group, so we transform each group's measured points with its measured excitation and build a separate transformed interpolant. Original physical triangle connectivity is preserved. We compare each projected triangle's signed area with its original area and reject reversed facets. At a query, membership in all projected facets is counted; overlapping or otherwise ambiguous memberships are excluded for both compared surfaces. This avoids hiding a folded excitation graph by simply retriangulating its projected nodes. A 41-by-41 physical query grid on the lower-excitation original surface supplies anchor points and interpolated measured excitation. Those points are transformed for each method and queried on the neighboring higher-excitation surface at exactly the same reduced coordinates. The anchor's original flux is the comparison value. All seven reduced methods use the intersection of their supported physical anchors for that pair. Pairwise squared errors are pooled with their valid point counts; individual pair counts and both flux components are retained.
+
+This procedure uses independently interpolated surfaces, before any shared raster is built. Its numerical path differs from the shared-table reconstruction and from local derivative fitting. It nevertheless retains measurement, excitation-graph and original-surface interpolation uncertainty. A nonzero difference cannot be assigned uniquely to physical model inadequacy, and a small difference between neighboring groups does not prove global compatibility of all groups.
+
+Projected facets use straight edges through transformed vertices. For the nonlinear coordinates, this also approximates the curved image of an original facet. That discretization contribution is retained in the interpretation of the independent comparison; the two numerical procedures are complementary, not exact noise-free duplicates.
+
+\subsection{Parameter fitting without final-group leakage}\label{sec:cv}
+Each outer fold removes one complete nominal excitation group. No point from that group is used to estimate a factor, fit a variable shift, set current scales or tune numerical coefficients. Within the remaining training groups, three interior groups spanning the available excitation range are selected by a fixed rule as inner folds. Each inner fold retains at most 120 deterministically spaced query records, inside the baseline model's support. Its predictor is fitted to the other inner groups. This makes an omitted group a prediction problem; it cannot receive a new free shift fitted to its own fluxes.
+
+For C--G the criterion uses equal weights for the two flux components in Vs:
+\begin{equation}\label{eq:objective}
+\mathcal J=\frac1{N_f}\sum_f\frac1{2n_f}\sum_{j\in f}
+\left(r_{d,j}^2+r_{q,j}^2\right)
++\lambda\sum_{\ell\ge2}(c_\ell/K)^2.
+\end{equation}
+Here $K=\max(|k_A|,1)$; $\lambda=10^{-8}\ \mathrm{Vs}^2$ for D--G and zero for B/C. B uses d-flux alone. Inner groups receive equal weight, irrespective of sample count. A candidate losing a fixed inner query receives a 1 Vs residual for each missing component, preventing an optimizer from improving its score by discarding difficult points. This penalty is an optimization device, not an acceptance tolerance. Final errors include only explicitly supported points and report coverage.
+
+B/C use bounded scalar minimization, refining the best two basins found in an initial bracket search over $[-0.5K,2.5K]$. D--G start from C and use a bounded-coefficient simplex search, with coefficient magnitudes limited to $4K$, the monotonicity restriction for G, and a fixed evaluation budget. The objective can have local minima because the triangulation changes. Termination flags, evaluations, search bounds and every fold's parameters are saved. Failure to converge is reported as such; the best visited point is not claimed to be a unique global optimum. The hierarchy and regularization are specified before evaluating final groups.
+
+For the all-data reconstruction, the same inner-fold selection rule fits coefficients before building the table from all groups. Reconstruction uses training data and is not independent validation. Outer prediction refits the complete procedure for every removed group. Interior groups, boundary groups and unavailable extrapolation are distinguished. No extrapolation is enabled. A reduced model may predict a boundary group if its reduced coordinates remain inside training support, while H may have no support there. Such differences are reported rather than interpreted as matched-support extrapolation accuracy.
+
+\subsection{Metrics and aggregation}
+For a common set $\mathcal V$ of $N$ supported physical points, define
+\begin{align}
+\mathrm{RMSE}_x&=\sqrt{\frac1N\sum_{j\in\mathcal V}r_{x,j}^2},\\
+J_{\mathrm{flux}}&=\sqrt{\frac1{2N}\sum_{j\in\mathcal V}(r_{d,j}^2+r_{q,j}^2)},\\
+M&=\max_{j\in\mathcal V,x\in\{d,q\}}|r_{x,j}|,\qquad
+Q_{95}=\operatorname{quantile}_{0.95}\!\left(\sqrt{r_d^2+r_q^2}\right).
+\end{align}
+All four quantities have flux-linkage units. $J_{\mathrm{flux}}$ is the root mean square over two component samples per point; $Q_{95}$ is a vector-error quantile and therefore has a different normalization. Coverage is the valid count divided by the eligible source count. Overall RMSE pools squared point errors and counts across groups; it is not the arithmetic mean of group RMSE values. Per-group errors, each model's own valid count, common-support counts, parameter counts and storage are exported. The main interior prediction comparison uses the common support of A--H; boundary comparisons use a separately identified reduced-model intersection and own-support results.
+
+\section{Results}\label{sec:results}
 \input{flux_map_reduction.tex}
 
-\section{Physical interpretation and implications for MeasEval}\label{sec:physical}
-\subsection{Coordinate replacement preserves source flux values}
-The transformation
-\[
-(i_d,i_q,i_e,\psi_d,\psi_q)\mapsto(i_d+k_0i_e,i_q,\psi_d,\psi_q)
-\]
-leaves both flux values unchanged. Changing flux values requires a subsequent interpolation, averaging, or approximation. Appendix~\ref{app:existing} visualizes this distinction.
-
-The results support \(k_{\mathrm{ME}}\) as a practical summary over its selected contour range. They do not justify identifying it with an exact geometric turns ratio, every local derivative ratio, or an everywhere-valid common constant reduction. Omitting the lowest and highest flux quarters during factor estimation matters when applying that factor at those extremes.
-
-\subsection{A flux table does not establish complete PSM equivalence}
-Even if~\eqref{eq:reduced} were exact, the physical currents remain \(i_d=s-k_0i_e\), \(i_q=q\). For the amplitude-invariant dq convention, the torque identity becomes
+\section{Physical interpretation and remaining uncertainty}\label{sec:physical}
+\subsection{Coordinate compression is not complete machine equivalence}
+For the constant d-shift, even an exact stator-flux reduction leaves the physical currents $i_d=s-k i_e$ and $i_q=q$. With the conventional three-phase amplitude-invariant dq torque identity,
 \begin{align}
 T_e&=\tfrac32p(\psi_d i_q-\psi_q i_d)\\
-&=\tfrac32p\bigl[f(s,q)q-g(s,q)s+k_0i_e g(s,q)\bigr].
+&=\tfrac32p\left[F_d(s,q)q-F_q(s,q)s+k i_e F_q(s,q)\right].
 \end{align}
-An explicit excitation term remains. Substituting \(s\) directly for physical \(i_d\) in a PSM torque formula would discard it. Likewise, the d-axis resistive voltage term is \(R_s(s-k_0i_e)\), not \(R_s s\). For constant \(k_0\),
-\[
-\dot\psi_x=f_{x,s}(\dot i_d+k_0\dot i_e)+f_{x,q}\dot i_q,
-\]
-where \(f_d=f,f_q=g\). The excitation circuit retains its own voltage equation. A common two-axis flux representation does not, on its own, validate identical controller dynamics or a complete two-current machine model.
+Substituting $s$ directly for physical $i_d$ would remove the final term incorrectly. Likewise, the resistive voltage is $R_s(s-k i_e)$, not $R_s s$. The excitation circuit remains a separate physical circuit. For variable coordinates, the complete derivatives in~\eqref{eq:fullchain} must be retained in dynamic calculations. A compact stator-flux table does not establish identical torque, voltage limits or controller dynamics to a permanent-magnet machine.
 
-For a variable expression \(s=i_d+i_e k(\ii)\), the complete chain rule is
-\[
-\dot s=(1+i_e k_{i_d})\dot i_d+i_e k_{i_q}\dot i_q
-+(k+i_e k_{i_e})\dot i_e.
-\]
-These additional terms cannot be omitted in dynamic calculations.
+For F, the inverse is $i_d=s_d-k_d i_e$ and $i_q=s_q-k_q i_e$. Both recovered physical currents, rather than the two table axes themselves, must enter the torque and resistive-voltage expressions.
 
-\subsection{Practical consequences}
-Keep the original contour estimate as a named reference, preserve excitation ordering, and retain measured physical currents. Compare both stator flux constraints before interpreting a factor as a common compensation direction. Use joint residuals and denominator information alongside ratio plots.
+\subsection{What the experiments separate, and what they do not}
+Different k estimators expose sensitivity to the fitting criterion and contour construction. Persistent derivative-direction residuals and independent-surface disagreement expose departures from the reduction constraint in the estimated data. Changing coordinate normalization or raster density exposes numerical sensitivity. Raw-to-export comparisons expose changes in preprocessing. These are distinct diagnostics, not additive causal components.
 
-Distinguish source flux values, a scattered merged field, a raster, and a consumer's returned values. Invalid interpolation values must remain distinguishable from measured zero flux. The controlled raster experiment here does not prescribe a replacement for the GUI or controller lookup operator.
+In particular, subtracting two RMSE values does not estimate a physical model-error contribution. The errors can be correlated, the interpolation geometry can change, and coverage can change. Measurement calibration, period averaging, repeat averaging, nonstationarity, thermal drift and fitted-surface error have not been separately quantified. Therefore neither the derivative residuals nor the surface differences constitute an uncertainty-calibrated rejection of an underlying physical relation. The full three-current reference is also subject to these limitations.
 
-\section{Limitations and conclusion}
-These are processed GUI outputs at one requested speed. The study does not establish absolute flux calibration or quantify sensor uncertainty. It does not isolate temperature, timing, resistance, loss, or averaging effects. Whole-group holdout avoids fitting to the missing group, but records from the same campaign are not independent calibrated experiments.
+Whole-group prediction removes a significant source of fitting leakage but does not create a new independent measurement campaign. The finite number of groups, fixed polynomial hierarchy and finite optimizer budget limit the strength of any ranking. The comparison does not claim that all possible nonlinear two-coordinate representations have been ruled out. Nor does a small all-data reconstruction error demonstrate lossless reduction.
 
-Local affine derivatives trade resolution against noise and curvature bias. Missing neighborhoods, denominator thresholds, and current-space sampling affect numerical summaries. A nonzero estimated residual is not itself a statistical significance statement.
-
-Mathematically, the common constant shift requires both equations~\eqref{eq:common}. The determinant identifies a common local direction only under the stated nondegeneracy conditions. A varying local factor does not automatically yield expression~\eqref{eq:shift}.
-
-Numerically, the reproduced MeasEval factors are approximately 13.5. Joint derivative fitting produces global factors near 14, with coupling residuals not removed by that change. The tested full three-current interpolant predicts missing excitation groups more accurately than the constant-factor reductions. Rasterization adds a separate measurable error.
-
-The saved-artifact diagnosis additionally locates a substantial reconstruction discrepancy in the merged-grid roundtrip. Separate saved excitation slices have much smaller average residuals. Finer rasters reduce this reconstruction error considerably, while the small constant-factor sweep gives only a moderate further improvement. These findings do not identify a unique physical cause or a quantitative partition of structural and interpolation errors.
-
-Together these findings support an approximate, domain-dependent use of the constant factor. They motivate a three-current representation or an explicitly constructed variable coordinate only after checking local compatibility and conditioning. No such variable coordinate is claimed to have been identified here.
+\section{Recommendation and conclusion}\label{sec:conclusion}
+\input{recommendation.tex}
 
 \appendix
-\section{Source files, execution, and notation mapping}
-The supplied \emph{Motor Model.note} contains three handwritten pages, read from its stored vector strokes. Page 1 supplies the voltage convention. The coordinate derivation and determinant argument on page 3 are developed in Sections~\ref{sec:contours}--\ref{sec:variable}. The full flux-differential notation on pages 2 and 3 is retained, while identification is restricted to the two measured stator functions.
+\section{Reproducibility and companion material}
+The research scripts rebuild the point exports, fit A--H, retain all outer-fold parameters, and generate the numerical tables and figures from their MAT results. The companion execution note records the source provenance, software version, exact commands, optimization settings, historical-coordinate checks and review-to-change mapping. Reproduction requires the acquisition MAT files; productive GUI changes are not required. Large historical exports are used only for a separately identified provenance comparison.
 
-The original \texttt{analyze\_winding\_factors.m} remains the finite-contour reference. Its \texttt{kd\_psid}, \texttt{kd\_psiq} are the two d-shift candidates; \texttt{kq\_psid}, \texttt{kq\_psiq} are the q-shift candidates. The additional \texttt{validate\_winding\_factor.m} contains local fits, joint diagnostics, holdout, and the raster experiment. It was run in MATLAB R2025b.
+The atlas contains one page for every dataset, nominal excitation group and model, showing both flux components. Each row places a blue original surface and an orange reconstruction on the left and a signed physical-current error map on the right. A 41-by-41 display grid is supported only where the original surface and the reconstructed table are available. Measured excitation is interpolated on the original group graph. The error scale is zero-centred and fixed within each dataset across methods and groups. This display interpolation is separate from the point-based numerical metrics.
 
-The evaluated source files are
-\begin{quote}\small
-\path{Resources/DataSets/Set1/extracted/evaluation/}\\
-\path{Matlab_200_201_202_FluxEval_measurements.mat}\\[3pt]
-\path{Resources/DataSets/Set2/extracted/evaluation/}\\
-\path{eval_flux_eesm_excitation_0A_to_40A_measurements.mat}.
-\end{quote}
-Within \texttt{Total.pos\_3000\_rpm}, the channels are \texttt{PE\_Id\_meas\_avg}, \texttt{PE\_Iq\_meas\_avg}, \texttt{I\_exc\_meas}, \texttt{PE\_psi\_d\_meas}, and \texttt{PE\_psi\_q\_meas}. Finite records are retained and groups are ordered by \texttt{Ref\_exc\_current}.
-
-From the repository root, run \texttt{validate\_winding\_factor} in MATLAB. Numeric outputs are saved to \path{results/winding_validation.mat}; manuscript figures go to \path{winding_factor_study/figures/}. Original reference figures are produced separately by \texttt{analyze\_winding\_factors}. The tables in \texttt{results.tex} record the dated run. Changing analysis settings requires updating these tables and their interpretation as well as regenerating figures.
-
-Run \texttt{analyze\_flux\_map\_reduction} for the saved-artifact comparison. It loads the full files from \path{Resources/DataSets/Set1/FluxEval/Matlab_200_201_202_FluxEval.mat} and \path{Resources/DataSets/Set2/FluxEval/eval_flux_eesm_excitation_0A_to_40A.mat}. These large files remain local and are excluded from Git. Compact measurement exports alone do not contain the saved LUTs. The script writes \path{results/flux_map_reduction.mat}, containing one \texttt{diagnosis} cell per dataset, including masks, measured currents, source and returned fluxes, summaries, and factor sweep. The section source \texttt{flux\_map\_reduction.tex} records this run's tables and must be updated when numerical results change.
-
-\clearpage
-\section{Per-group validation coverage}\label{app:folds}
-\FoldTable
-
-\clearpage
-\section{Existing reference visualizations}\label{app:existing}
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{flux_original_transformed.png}
-\caption{Set 2 original measured surfaces and the same flux values after the original constant coordinate shift. Color denotes nominal excitation current. This view shows geometry before evaluating a single merged approximation.}
-\end{figure}
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{secants.png}
-\caption{The four earlier finite-contour candidates, retained as exploratory views. Their midpoint assignment and secants are defined in Section~\ref{sec:contours}; they are not pointwise differential-inductance maps.}
-\end{figure}
+The d-flux 3D view places q-current on its first displayed axis and d-current on its second to show the surface more clearly. Error maps retain the physical d/q order. Axis units are written as ``in A'' and ``in mVs''. Atlas pages use one shared LaTeX template and nested loops over excitation groups and methods; the generated page list contains only the three dataset definitions.
 
 \clearpage
 \begin{thebibliography}{9}
-\bibitem{note}
-User-supplied handwritten note, \emph{Motor Model}, three pages, Notability archive, supplied with this investigation.
-\bibitem{turk}
-N.~Turk, D.~Cika\v{c}, N.~Buli\'{c}, and S.~Barbanti,
-\emph{A Novel Experimental Method for Identifying the Flux Linkage Map of a High-Power Medium-Voltage Electrically Excited Synchronous Machine with Double Stator Winding},
-Machines, vol.~10, no.~3, article~187, 2022.
-\url{https://doi.org/10.3390/machines10030187}.
-\bibitem{matlab}
-MathWorks, \emph{scatteredInterpolant: Interpolate 2-D or 3-D scattered data}, MATLAB documentation, accessed 23 October 2026.
-\url{https://www.mathworks.com/help/matlab/ref/scatteredinterpolant.html}.
+\bibitem{turk}N.~Turk, D.~Cika\v{c}, N.~Buli\'{c}, and S.~Barbanti,
+``A Novel Experimental Method for Identifying the Flux Linkage Map of a High-Power Medium-Voltage Electrically Excited Synchronous Machine with Double Stator Winding,''
+\emph{Machines}, vol.~10, no.~3, article~187, 2022.
+\href{https://doi.org/10.3390/machines10030187}{doi:10.3390/machines10030187}.
+\bibitem{cleveland}W.~S.~Cleveland and S.~J.~Devlin,
+``Locally Weighted Regression: An Approach to Regression Analysis by Local Fitting,''
+\emph{Journal of the American Statistical Association}, vol.~83, no.~403, pp.~596--610, 1988.
+\href{https://doi.org/10.1080/01621459.1988.10478639}{doi:10.1080/01621459.1988.10478639}.
+\bibitem{matlab}MathWorks, ``Interpolating Scattered Data'' and ``scatteredInterpolant,'' MATLAB documentation, accessed 24 October 2026.
+\url{https://www.mathworks.com/help/matlab/math/interpolating-scattered-data.html}.
 \end{thebibliography}
-
 \end{document}
-

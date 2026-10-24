@@ -1,0 +1,31 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}\usepackage[landscape,margin=12mm]{geometry}
+\usepackage{graphicx,hyperref,pgffor}
+\setlength{\parindent}{0pt}
+\newcommand{\AtlasDataset}[2]{%
+  \foreach \exc [count=\groupindex from 1] in {#2}{%
+    \edef\groupid{\ifnum\groupindex<10 0\fi\groupindex}%
+    \foreach \method in {A,B,C,D,E,F,G,H}{%
+      \clearpage
+      \section*{Set #1, method \method, excitation \exc\ A}
+      \includegraphics[width=\linewidth]{figures/atlas/set#1_group\groupid_\method.png}
+      \par\small Original: blue; reconstructed: orange. Errors are signed, in mVs.
+      The excitation graph uses measured currents. White regions lack support.
+      The d-flux 3D view places q-current on the first axis; heatmaps keep physical d/q order.
+    }%
+  }%
+}
+\title{Excitation-Current Coordinate Reduction: Complete Reconstruction Atlas}
+\author{Winding Factor Research Study}\date{24 October 2026}
+\begin{document}\maketitle
+One page per dataset, excitation group and method (A--H). The main paper defines the models, point-based metrics, support rules and independent prediction experiment.
+\par\medskip
+Both flux components are shown. Left: original (blue) and shared-table reconstruction (orange). Right: signed error over physical stator currents. Units are mVs. Missing regions are not extrapolated. Colour limits are shared across each dataset.
+\par\medskip
+The figures interpolate each original group's measured excitation alongside its flux. A nominal group label is not substituted for the pointwise measured current. The 41-by-41 display grid is distinct from the 81-by-81 stored reduced grid.
+\par\medskip
+Axis labels use ``current in A'' and ``flux linkage in mVs''. The d-flux 3D view exchanges the displayed d- and q-current axes to expose the surface; the error maps retain their physical d/q arrangement.
+\setkeys{Gin}{height=0.80\textheight,keepaspectratio}
+\centering
+\input{atlas_pages.tex}
+\end{document}

@@ -1,188 +1,162 @@
-%% Saved MeasEval slices versus the merged two-dimensional flux map
-% Run from any directory. Uses actual measured currents; no extrapolation.
-root = fileparts(mfilename('fullpath'));
-files = {fullfile(root, 'Resources/DataSets/Set1/FluxEval/Matlab_200_201_202_FluxEval.mat'), ...
-    fullfile(root, 'Resources/DataSets/Set2/FluxEval/eval_flux_eesm_excitation_0A_to_40A.mat')};
-out = fullfile(root, 'results'); if ~isfolder(out), mkdir(out); end
-figures = fullfile(root, 'winding_factor_study/figures');
-if ~isfolder(figures), mkdir(figures); end
-diagnosis = cell(1, 2);
-
-for dataset = 1:2
-    data = load(files{dataset}, 'Total', 'LUT');
-    map = data.LUT.CtrlMaps; complete = map.complete;
-    k0 = map.EESM_winding_ratio; blocks = data.Total.pos_3000_rpm;
-    names = fieldnames(blocks);
-    refs = cellfun(@(name) blocks.(name).Ref_exc_current, names);
-    [excitation, order] = sort(refs); names = names(order);
-    x = []; psi = []; returned = []; formula = []; groups = [];
-    coordinate = strings(numel(names), 1);
-    axis_error = nan(numel(names), 2);
-
-    %% A: measured flux. B: lookup of its own excitation-reference slice.
-    for g = 1:numel(names)
-        block = blocks.(names{g}); m = block.Meas;
-        current = [m.PE_Id_meas_avg(:), m.PE_Iq_meas_avg(:), m.I_exc_meas(:)];
-        flux = [m.PE_psi_d_meas(:), m.PE_psi_q_meas(:)];
-        keep = all(isfinite([current flux]), 2);
-        slice = find(abs(complete.I_exc_vec-excitation(g)) < 1e-6);
-        d = complete.Id_breakpoints(slice, :); q = complete.Iq_breakpoints(slice, :);
-        physical = linspace(min(block.Calc.Grid.Id_fine), max(block.Calc.Grid.Id_fine), numel(d));
-        offset = complete.EESM_winding_ratio*excitation(g);
-        axis_error(g, :) = [max(abs(d-physical)), max(abs(d-physical-offset))];
-        % New metadata is authoritative. Older files are identified by axis alignment.
-        if isfield(complete, 'Coordinates')
-            shifted = strcmp(complete.Coordinates.d_axis, 'Id_star');
-        else
-            [distance, convention] = min(axis_error(g, :));
-            if distance > 1e-6, error('Unknown complete-map coordinates in %s', names{g}); end
-            shifted = convention == 2;
-        end
-        query_d = current(:, 1);
-        coordinate(g) = "physical Id";
-        if shifted
-            % This is a relabelled physical slice: use its fixed REFERENCE offset.
-            query_d = query_d+offset; coordinate(g) = "Id_star, slice reference";
-        end
-        values = nan(size(flux));
-        values(:, 1) = interp2(d, q, complete.Psi_d(:, :, slice), query_d, current(:, 2), 'linear', nan);
-        values(:, 2) = interp2(d, q, complete.Psi_q(:, :, slice), query_d, current(:, 2), 'linear', nan);
-        source_formula = [(m.PE_Uq_meas_avg(:)-m.Const_Machine_R_s(:).*current(:, 2))./m.PE_w_el_rad_avg(:), ...
-            (m.Const_Machine_R_s(:).*current(:, 1)-m.PE_Ud_meas_avg(:))./m.PE_w_el_rad_avg(:)];
-        x = [x; current(keep, :)]; psi = [psi; flux(keep, :)];
-        returned = [returned; values(keep, :)]; formula = [formula; source_formula(keep, :)];
-        groups = [groups; repmat(g, nnz(keep), 1)];
+function study=analyze_flux_map_reduction(dataset_selection)
+% A--H: controlled reconstruction and nested whole-excitation-group prediction.
+if nargin==0,dataset_selection=1:3;end
+root=fileparts(mfilename('fullpath')); addpath(root); out=fullfile(root,'results');
+loaded=load(fullfile(out,'reduction_data.mat'),'data'); data=loaded.data;
+labels={'A contour','B fixed-q d fit','C joint constant','D excitation shift', ...
+    'E q/excitation shift','F two-axis constant','G three-current shift','H full three-current'};
+n_grid=81; study=cell(3,1); parameters=[1 1 1 2 3 2 5 0];
+for s=dataset_selection
+    d=data{s}; x=d.x; y=d.psi; groups=d.groups; ng=numel(d.excitation);
+    fprintf('\nSET %d: all-data parameter fitting\n',s); tic;
+    [p,fitinfo,current_scale]=fit_methods(x,y,groups,n_grid);
+    maps=cell(8,1); reconstruction=nan(size(y,1),2,8);
+    for m=1:8
+        maps{m}=fit_reduction_map(x,y,m,p{m},current_scale,n_grid,true);
+        reconstruction(:,:,m)=reduction_lookup(maps{m},x);
     end
-
-    %% C: saved merged map. Its shift uses the ACTUAL excitation current.
-    projected = [x(:, 1)+k0*x(:, 3), x(:, 2)];
-    merged = lookup(map.Id_fine, map.Iq_fine, cat(3, map.Psi_d, map.Psi_q), projected);
-    predictions = cat(3, returned, merged);
-    own = squeeze(all(isfinite(predictions), 2)); common = all(own, 2);
-    own_stats = nan(2, 5); common_stats = nan(2, 5);
-    per_group = nan(numel(names), 5, 2);
-    for method = 1:2
-        own_stats(method, :) = metrics(predictions(:, :, method)-psi, own(:, method));
-        common_stats(method, :) = metrics(predictions(:, :, method)-psi, common);
-        for g = 1:numel(names)
-            per_group(g, :, method) = metrics(predictions(:, :, method)-psi, common & groups == g);
+    prediction=nan(size(reconstruction)); fold_p=cell(ng,8); fold_info=cell(ng,1);
+    for g=1:ng
+        train=groups~=g; test=~train;
+        fprintf('Set%d: outer holdout %g A (%d/%d)\n',s,d.excitation(g),g,ng);
+        [pg,info,sc]=fit_methods(x(train,:),y(train,:),groups(train),n_grid);
+        for m=1:8
+            map=fit_reduction_map(x(train,:),y(train,:),m,pg{m},sc,n_grid,true);
+            prediction(test,:,m)=reduction_lookup(map,x(test,:)); fold_p{g,m}=pg{m};
+        end
+        fold_info{g}=info;
+        save(fullfile(out,sprintf('Set%d_progress.mat',s)),'p','fold_p','prediction','g','fitinfo','fold_info');
+    end
+    recon_common=all(isfinite(reconstruction),[2 3]); inner=groups>1 & groups<ng;
+    cv_common=all(isfinite(prediction),[2 3]) & inner;
+    boundary_common=all(isfinite(prediction(:,:,1:7)),[2 3]) & ~inner;
+    metrics=[]; pergroup=[];
+    for mode=1:2
+        pred=reconstruction; common=recon_common; eligible=true(size(groups));
+        if mode==2, pred=prediction; common=cv_common; eligible=inner; end
+        for m=1:8
+            metrics=[metrics;s,mode,m,stats(pred(:,:,m)-y,common,nnz(eligible)), ...
+                nnz(eligible & all(isfinite(pred(:,:,m)),2)),parameters(m), ...
+                maps{m}.nodes,16*maps{m}.nodes+8*numel(p{m})];
+            for g=1:ng
+                pergroup=[pergroup;s,mode,m,d.excitation(g), ...
+                    stats(pred(:,:,m)-y,common & groups==g,nnz(groups==g)), ...
+                    nnz(groups==g & all(isfinite(pred(:,:,m)),2))];
+            end
         end
     end
-
-    %% Reconstruct the saved grid from measured points, then vary only raster size.
-    F = scatteredInterpolant(projected, psi, 'linear', 'none');
-    [D, Q] = meshgrid(map.Id_fine, map.Iq_fine);
-    rebuilt = reshape(F([D(:), Q(:)]), [size(D) 2]);
-    stored = cat(3, map.Psi_d, map.Psi_q);
-    grid_common = all(isfinite(rebuilt) & isfinite(stored), 3);
-    grid_mask_difference = nnz(any(isfinite(rebuilt) ~= isfinite(stored), 3));
-    grid_difference = reshape(rebuilt-stored, [], 2);
-    reconstruction_max = max(abs(grid_difference(grid_common(:), :)));
-    node_max = max(abs(F(projected)-psi));
-    sizes = [101 201 401]; raster_prediction = nan(size(psi, 1), 2, 3);
-    for h = 1:3
-        d = linspace(min(map.Id_fine), max(map.Id_fine), sizes(h));
-        q = linspace(min(map.Iq_fine), max(map.Iq_fine), sizes(h));
-        [D, Q] = meshgrid(d, q);
-        values = reshape(F([D(:), Q(:)]), [size(D) 2]);
-        raster_prediction(:, :, h) = lookup(d, q, values, projected);
+    boundary=[];
+    for m=1:8
+        common=boundary_common & all(isfinite(prediction(:,:,m)),2);
+        boundary=[boundary;s,m,stats(prediction(:,:,m)-y,common,nnz(~inner)), ...
+            stats(prediction(:,:,m)-y,~inner & all(isfinite(prediction(:,:,m)),2),nnz(~inner))];
     end
-    raster_mask = own(:, 2) & all(isfinite(raster_prediction), [2 3]);
-    raster = nan(3, 5);
-    for h = 1:3
-        raster(h, :) = metrics(raster_prediction(:, :, h)-psi, raster_mask);
+    scaling=nan(size(y,1),2,4);
+    for j=1:4
+        m=1; if j>2,m=8;end
+        map=fit_reduction_map(x,y,m,p{m},current_scale,n_grid,mod(j,2)==1);
+        scaling(:,:,j)=reduction_lookup(map,x);
     end
-
-    %% Small k sweep: same 101x101 saved grid extent, same points for every k.
-    % Reconstruction only: all source samples also train these interpolants.
-    factors = sort(unique([12:.5:16 k0]));
-    sweep_prediction = nan(size(psi, 1), 2, numel(factors));
-    [D, Q] = meshgrid(map.Id_fine, map.Iq_fine);
-    for h = 1:numel(factors)
-        z = [x(:, 1)+factors(h)*x(:, 3), x(:, 2)];
-        G = scatteredInterpolant(z, psi, 'linear', 'none');
-        values = reshape(G([D(:), Q(:)]), [size(D) 2]);
-        sweep_prediction(:, :, h) = lookup(map.Id_fine, map.Iq_fine, values, z);
+    scale_common=all(isfinite(scaling),[2 3]); scaling_stats=[];
+    for j=1:4, scaling_stats=[scaling_stats;j,stats(scaling(:,:,j)-y,scale_common,size(x,1))];end
+    raster_stats=[]; raster=nan(size(y,1),2,3); sizes=[41 81 161];
+    for j=1:3
+        map=fit_reduction_map(x,y,1,p{1},current_scale,sizes(j),true);
+        raster(:,:,j)=reduction_lookup(map,x);
     end
-    sweep_mask = common & all(isfinite(sweep_prediction), [2 3]); sweep = nan(numel(factors), 5);
-    for h = 1:numel(factors)
-        sweep(h, :) = metrics(sweep_prediction(:, :, h)-psi, sweep_mask);
-    end
-    [~, best] = min(sum(sweep(:, 1:2).^2, 2));
-
-    diagnosis{dataset} = struct('file', files{dataset}, 'x', x, 'psi', psi, 'groups', groups, ...
-        'excitation', excitation, 'coordinate', coordinate, 'axis_error', axis_error, 'k0', k0, ...
-        'prediction', predictions, 'own', own, 'common', common, 'own_stats', own_stats, ...
-        'common_stats', common_stats, 'per_group', per_group, ...
-        'formula_max_Wb', max(abs(formula-psi)), 'reconstruction_max_Wb', reconstruction_max, ...
-        'grid_mask_difference', grid_mask_difference, ...
-        'node_max_Wb', node_max, 'unique_projected', size(unique(projected, 'rows'), 1), ...
-        'sizes', sizes, 'raster', raster, 'raster_mask', raster_mask, ...
-        'factors', factors, 'sweep', sweep, 'sweep_mask', sweep_mask, 'best', best);
-
-    %% One overview per dataset: both components, identical common-point support.
-    fig = figure(40+dataset); clf; theme(fig, 'light');
-    set(fig, 'Position', [50 30 1100 1300]);
-    t = tiledlayout(4, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-    labels = {'d', 'q'};
-    for component = 1:2
-        nexttile(component);
-        plot(1000*psi(common, component), 1000*returned(common, component), '.', 'MarkerSize', 3); hold on;
-        plot(1000*psi(common, component), 1000*merged(common, component), '.', 'MarkerSize', 3);
-        limits = 1000*[min(psi(common, component)) max(psi(common, component))];
-        plot(limits, limits, 'k--', 'HandleVisibility', 'off'); grid on;
-        xlabel('Measured flux in mWb'); ylabel('Reconstructed flux in mWb');
-        title(sprintf('Set %g, %s flux', dataset, labels{component}));
-        legend('Complete slices', 'Merged 2D', 'Location', 'best');
-        errors = 1000*(predictions(:, component, :)-psi(:, component));
-        color_limit = max(abs(errors(common, :)), [], 'all');
-        for method = 1:2
-            nexttile(2*method+component);
-            scatter(x(common, 1), x(common, 2), 7, errors(common, 1, method), 'filled');
-            clim([-color_limit color_limit]); cb = colorbar; cb.Label.String = 'Flux residual in mWb';
-            xlabel('Physical Id in A'); ylabel('Physical Iq in A');
-            methods = {'Complete slices', 'Merged 2D'}; title([methods{method} ', ' labels{component} ' flux']); grid on;
-        end
-        nexttile(6+component);
-        plot(excitation, squeeze(per_group(:, component, :)), '.-', 'LineWidth', 1); grid on;
-        xlabel('Excitation reference in A'); ylabel('Flux RMSE in mWb');
-        title([labels{component} ' flux, common points']); legend('Complete slices', 'Merged 2D', 'Location', 'best');
-    end
-    exportgraphics(t, fullfile(figures, sprintf('reduction_set%g.png', dataset)), 'Resolution', 180);
-    fprintf('\nSet %g: k = %.9f; %g source points; %g unique projected points\n', dataset, k0, size(x, 1), size(unique(projected, 'rows'), 1));
-    disp('Rows complete/merged; columns d/q RMSE, d/q maximum in mWb, point count');
-    disp('Own support:'); disp(own_stats); disp('Common support:'); disp(common_stats);
-    fprintf('Formula, grid rebuild and scattered-node max errors in Wb:\n');
-    disp([max(abs(formula-psi)); reconstruction_max; node_max]);
-    fprintf('Rebuilt versus saved grid: %g differing finite-mask cells\n', grid_mask_difference);
-    disp('Raster 101/201/401, saved extent, common mask:'); disp(raster);
-    disp('k sweep: k, d/q RMSE, d/q maximum in mWb, count'); disp([factors' sweep]);
+    raster_common=all(isfinite(raster),[2 3]);
+    for j=1:3,raster_stats=[raster_stats;sizes(j),stats(raster(:,:,j)-y,raster_common,size(x,1))];end
+    jacobian=1+x(:,3).*(p{7}(4)/current_scale(1)+2*p{7}(5)*x(:,1)/current_scale(1)^2);
+    xref=x; xref(:,3)=d.excitation(groups); reference_prediction=reduction_lookup(maps{1},xref);
+    refmask=recon_common & all(isfinite(reference_prediction),2);
+    reference_stats=stats(reference_prediction-reconstruction(:,:,1),refmask,size(x,1));
+    result=struct('p',{p},'fitinfo',{fitinfo},'maps',{maps},'current_scale',current_scale, ...
+        'reconstruction',reconstruction,'prediction',prediction,'fold_p',{fold_p}, ...
+        'fold_info',{fold_info},'recon_common',recon_common,'cv_common',cv_common, ...
+        'boundary_common',boundary_common,'metrics',metrics,'pergroup',pergroup, ...
+        'boundary',boundary,'scaling_stats',scaling_stats,'raster_stats',raster_stats, ...
+        'jacobian',jacobian,'reference_stats',reference_stats,'elapsed_seconds',toc,'fit_revision',2);
+    study{s}=result;
+    save(fullfile(out,sprintf('Set%d_reduction.mat',s)),'result','labels','parameters','n_grid','-v7');
+    fprintf('Set%d completed in %.1f seconds\n',s,result.elapsed_seconds);
 end
-save(fullfile(out, 'flux_map_reduction.mat'), 'diagnosis');
-
-fig = figure(43); clf; theme(fig, 'light'); set(fig, 'Position', [50 50 1100 750]);
-t = tiledlayout(2, 2, 'TileSpacing', 'compact');
-for dataset = 1:2
-    a = diagnosis{dataset}; nexttile(dataset);
-    plot(a.sizes, a.raster(:, 1:2), '.-', 'LineWidth', 1);
-    xlabel('Grid points per axis'); ylabel('Flux RMSE in mWb'); title(sprintf('Set %g, saved extent', dataset));
-    legend('d flux', 'q flux'); grid on;
-    nexttile(dataset+2); plot(a.factors, a.sweep(:, 1:2), '.-', 'LineWidth', 1); hold on;
-    xline(a.k0, 'k--', 'Saved k', 'HandleVisibility', 'off');
-    xlabel('k in A/A'); ylabel('Flux RMSE in mWb'); title(sprintf('Set %g, fixed 101 by 101 grid', dataset));
-    legend('d flux', 'q flux'); grid on;
+% Individual sets may be executed concurrently; collect only finished new runs.
+for s=1:3
+    file=fullfile(out,sprintf('Set%d_reduction.mat',s));
+    if ~isfile(file),return;end
+    v=load(file,'result');
+    if ~isscalar(v.result) || ~isfield(v.result,'fit_revision'),return;end
+    study{s}=v.result;
 end
-exportgraphics(t, fullfile(figures, 'reduction_processing.png'), 'Resolution', 180);
-
-function prediction = lookup(d, q, values, z)
-    prediction = nan(size(z, 1), 2);
-    for component = 1:2
-        prediction(:, component) = interp2(d, q, values(:, :, component), z(:, 1), z(:, 2), 'linear', nan);
-    end
+save(fullfile(out,'flux_map_reduction.mat'),'study','labels','parameters','n_grid','-v7');
+allmetrics=vertcat(study{1}.metrics,study{2}.metrics,study{3}.metrics);
+allgroups=vertcat(study{1}.pergroup,study{2}.pergroup,study{3}.pergroup);
+names={'set','mode','method','rmse_d_mVs','rmse_q_mVs','joint_rmse_mVs', ...
+    'max_abs_mVs','p95_vector_mVs','valid_points','coverage','own_points','shift_parameters','grid_nodes','flux_bytes'};
+writetable(array2table(allmetrics,'VariableNames',names),fullfile(out,'method_metrics.csv'));
+writetable(array2table(allgroups,'VariableNames',[names(1:3),{'ie_nominal_A'},names(4:11)]),fullfile(out,'group_metrics.csv'));
 end
 
-function row = metrics(residual, mask)
-    residual = 1000*residual(mask, :);
-    row = [sqrt(mean(residual.^2)), max(abs(residual)), nnz(mask)];
+function [p,info,sc] = fit_methods(x,y,g,n)
+sc=max(abs(x),[],1); k=estimate_contour_factor(x,y,g); unit=max(abs(k),1);
+ug=unique(g); inner=ug(2:end-1); folds=unique(inner(round(linspace(1,numel(inner),min(3,numel(inner))))));
+parts=cell(numel(folds),1);
+for j=1:numel(folds)
+    tr=g~=folds(j); ix=find(g==folds(j)); ix=ix(round(linspace(1,numel(ix),min(120,numel(ix)))));
+    base=fit_reduction_map(x(tr,:),y(tr,:),1,k,sc,n,true);
+    keep=all(isfinite(reduction_lookup(base,x(ix,:))),2); ix=ix(keep);
+    parts{j}=struct('x',x(tr,:),'y',y(tr,:),'query',x(ix,:),'target',y(ix,:));
+end
+p=cell(8,1); p{1}=k; p{8}=[]; info=cell(8,1); info{1}=struct('inner_groups',folds);
+for m=2:3
+    fun=@(v) objective(v*unit,m,parts,sc,n,k);
+    seeds=linspace(-.5,2.5,9); score=arrayfun(fun,seeds); [~,order]=sort(score);
+    best=inf; chosen=nan; total=0;
+    for j=1:2
+        h=order(j); lo=seeds(max(1,h-1)); hi=seeds(min(numel(seeds),h+1));
+        [v,fval,exitflag,output]=fminbnd(fun,lo,hi,optimset('TolX',.002,'Display','off'));
+        total=total+output.funcCount;
+        if fval<best,best=fval; chosen=v; flag=exitflag;end
+    end
+    p{m}=chosen*unit; info{m}=struct('objective_Vs2',best,'exitflag',flag, ...
+        'evaluations',total+9,'inner_groups',folds,'search_range',[-.5 2.5]*unit);
+end
+count=[1 1 1 2 3 2 5];
+for m=4:7
+    base=zeros(1,count(m)); base(1)=p{3}/unit;
+    % Nonzero search coordinates give every coefficient the same initial step.
+    % A zero-valued physical coefficient must not get MATLAB's tiny zero step.
+    start=ones(1,count(m));
+    fun=@(v) objective((base+v-1)*unit,m,parts,sc,n,k);
+    [v,fval,flag,output]=fminsearch(fun,start, ...
+        optimset('MaxIter',220,'MaxFunEvals',350,'TolX',.003,'TolFun',1e-10,'Display','off'));
+    p{m}=(base+v-1)*unit; info{m}=struct('objective_Vs2',fval,'exitflag',flag, ...
+        'evaluations',output.funcCount,'inner_groups',folds);
+end
 end
 
+function cost = objective(p,m,parts,sc,n,k)
+unit=max(abs(k),1); v=p/unit;
+if any(abs(v)>4),cost=1+sum(v.^2);return;end
+if m==7
+    [D,E]=ndgrid([-sc(1) sc(1)],[-sc(3) sc(3)]);
+    jac=1+E(:).*(p(4)/sc(1)+2*p(5)*D(:)/sc(1)^2);
+    if min(jac)<.25,cost=1+sum((jac-.25).^2);return;end
+end
+cost=0;
+for j=1:numel(parts)
+    d=parts{j}; map=fit_reduction_map(d.x,d.y,m,p,sc,n,true);
+    pred=reduction_lookup(map,d.query); r=pred-d.target;
+    if m==2,r=r(:,1);end
+    r(~isfinite(r))=1; % Fixed denominator: lost support cannot improve the fit.
+    cost=cost+mean(r(:).^2)/numel(parts);
+end
+if m>=4, cost=cost+1e-8*sum(v(2:end).^2); end
+end
+
+function a = stats(r,mask,total)
+r=1000*r(mask,:); n=size(r,1);
+if n==0,a=[nan nan nan nan nan 0 0];return;end
+v=sort(vecnorm(r,2,2)); a=[sqrt(mean(r.^2,1)),sqrt(mean(r.^2,'all')), ...
+    max(abs(r),[],'all'),v(ceil(.95*n)),n,n/max(total,1)];
+end

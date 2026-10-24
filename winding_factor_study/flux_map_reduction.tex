@@ -1,144 +1,70 @@
-\section{Impact of Excitation-Current Coordinate Reduction on Flux-Linkage Reconstruction Accuracy}\label{sec:mapreduction}
-\subsection{Question and exact reduction condition}
-The processing hypothesis is that a substantial discrepancy appears when the separate excitation measurements are projected, merged, rasterized, and queried as a single two-dimensional flux map. This section compares the actual saved artifacts with their own source measurements. A reconstruction discrepancy alone does not prove a physical dimensional-reduction error.
+\subsection{The estimator and derivative evidence}
+\begin{table}[htbp]\centering\small\caption{All-data constant factors in A/A. B uses fixed-q d-flux prediction; C uses joint flux prediction. The derivative LS column optimizes a different criterion.}\FactorTable\label{tab:factors}\end{table}
+The conventional factors are 13.4921, 13.5184 and 14.7642 for Sets 1--3. Their difference from the earlier saved numbers reflects a fresh common preprocessing run rather than reuse of historical results. The fixed-q estimate B and joint estimate C are identified independently. Differences among A, B, C and the derivative LS estimate cannot be attributed solely to q-current drift: the objectives, sampled points, surface approximations and weighting rules also differ.
 
-At fixed reduced coordinates \(s=i_d+ki_e\) and \(q=i_q\), the chain rule gives
-\begin{equation}\label{eq:fiberresidual}
-\left.\frac{\partial\widehat{\ps}}{\partial i_e}\right|_{s,q}
-=\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}
--k\begin{bmatrix}L_{dd}\\L_{qd}\end{bmatrix}
-=\bvec-k\avec.
-\end{equation}
-Along any admissible connected constant-\((s,q)\) section,
-\begin{equation}
-\ps(s-ke_2,q,e_2)-\ps(s-ke_1,q,e_1)
-=\int_{e_1}^{e_2}(\bvec-k\avec)(s-ke,q,e)\,\dd e.
-\end{equation}
-Thus the reduction preserves all stator-flux information under the conditions established in Section~\ref{sec:common}: both coupling equations must hold, together with the domain connectivity requirement. A violation at a point prevents an exact reduction in its neighborhood for that constant \(k\). The derivative estimates are numerical diagnostics of this condition, not exact measurements of its violation.
+\begin{table}[htbp]\centering\small\caption{Contour diagnostics. Centroid RMS is the d-flux difference between a contour's coordinate centroid and its selected level; it is not a reconstruction RMSE. The final column quantifies centroid q-current drift.}\ContourTable\end{table}
+Nonzero centroid departure confirms that mean contour coordinates are generally not points of the same constant-flux contour. The drift term in~\eqref{eq:drift} is therefore not the only distinction between the implemented statistic and a fixed-q local derivative.
 
-The pure coordinate shear leaves each source flux value unchanged. If two physical points have identical reduced coordinates but different fluxes, no single-valued reduced function can reproduce both. Here all projected measured coordinates are distinct: 7476 of 7476 in Set 1 and 8092 of 8092 in Set 2. Consequently, exact source-node interpolation is possible even for a physically unsuitable reduction. The triangulation may then represent incompatible slices through strong variations between nearby nodes.
+\begin{table}[htbp]\centering\small\caption{Primary 80-neighbor derivative diagnostics. All residual norms are dimensionless ratios of inductance norms, not relative flux errors.}\DerivativeTable\label{tab:derivatives}\end{table}
+The global derivative factors are approximately 13.84, 13.95 and 14.45. Changing from A to the derivative-optimal constant only modestly reduces the aggregate derivative residual. Even a pointwise joint factor leaves a nonzero residual. The primary normalized-direction medians are approximately 0.090, 0.087 and 0.144. This is evidence of imperfect collinearity in the estimated sensitivities, with larger directional disagreement in Set 3. It is not a calibrated physical percentage error.
 
-\subsection{Saved representations and coordinate conventions}
-The standalone script \texttt{analyze\_flux\_map\_reduction.m} loads the original local FluxEval files and evaluates:
-\begin{itemize}
-\item A: \texttt{Meas.PE\_psi\_d\_meas} and \texttt{PE\_psi\_q\_meas} at actual measured \((i_d,i_q,i_e)\).
-\item B: \texttt{LUT.CtrlMaps.complete}, retaining separate source excitation-reference slices.
-\item C: \texttt{LUT.CtrlMaps}, queried at measured \((i_d+ki_e,i_q)\), using its saved \texttt{EESM\_winding\_ratio}.
-\end{itemize}
-The saved factors are \(13.490937385\) for Set 1 and \(13.516845982\) for Set 2. Each slice is associated with its matching \texttt{complete.I\_exc\_vec} value, rather than an assumed field or array order.
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{derivative_set3.png}
+\caption{Representative Set 3 derivative maps. The separate q-flux ratio is poorly conditioned when its d-current sensitivity is small. Joint LS avoids dividing by that individual cross-inductance, while the determinant measure asks whether one local d-compensation direction can serve both outputs.}\label{fig:derivative}\end{figure}
+\begin{table}[htbp]\centering\small\caption{Derivative-neighborhood sensitivity on the same retained physical points within each dataset. The changes reflect numerical slope estimation, not a change in machine turns.}\SensitivityTable\end{table}
+The neighborhood study retains the same source and coordinate convention and compares common derivative points. Its variation remains relevant when interpreting the numerical inductances; no confidence interval for exact physical derivatives is inferred.
 
-The saved \texttt{complete} files have no coordinate metadata, and their d breakpoints coincide with the corresponding physical \texttt{Calc.Grid.Id\_fine} axes. The script queries them with measured physical \(i_d\). Newer local \texttt{Torque\_LUT\_Calc.m} source also supports relabelled complete slices with
-\[
-d_{\mathrm{slice}}^*=i_d+k_{\mathrm{slice}}I_{e,\mathrm{ref}}.
-\]
-For those slices, the documented \texttt{Coordinates.d\_axis} is used and the query receives the fixed slice-reference offset. Substituting pointwise measured \(i_e\) into that relabelling would change the physical lookup location within the already constructed slice. The merged map, in contrast, is built from pointwise measured excitation currents and requires those same measured currents at lookup.
+\subsection{Independent transformed-surface compatibility}
+\begin{table}[htbp]\centering\small\caption{Joint RMS disagreement of adjacent transformed original surfaces in mVs, pooled by valid pair counts on identical supported anchors across A--G. These are surface differences, not shared-table reconstruction errors.}\SurfaceTable\label{tab:surfaces}\end{table}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{surface_set2.png}
+\caption{A representative adjacent excitation pair in Set 2. Each panel compares two independent original surfaces at the same reduced coordinates, before merging. Positive and negative differences are displayed with a common zero-centred scale. The methods use the same retained physical anchors.}\label{fig:surface}\end{figure}
+The maps locate where separate groups ask a common table for different values. Improving the scalar factor can move and reduce some discrepancies, but a shared table cannot simultaneously reproduce distinct requested values at one coordinate. Pairwise incompatibility and derivative-direction disagreement are complementary evidence. They do not supply an isolated physical error floor because original-surface interpolation and measurement uncertainty remain present. The folding report records reversed projected facets and ambiguous query memberships; these queries are excluded rather than assigned an arbitrary surface value.
 
-Both B and C are queried with bilinear \texttt{interp2}. Out-of-domain or NaN-contaminated interpolation cells remain invalid; no extrapolation or zero filling is used. This specifies the diagnostic lookup operator, not the operator of every GUI or controller consumer. Nominal excitation values only assign groups. Requested stator currents are never substituted for measured query coordinates.
+The pooled adjacent-surface disagreement for A is 1.868, 1.820 and 2.597 mVs in Sets 1--3; G changes these values to 1.800, 1.751 and 2.422 mVs. The larger Set 3 disagreement is qualitatively consistent with its larger derivative-direction diagnostic, while neither numerical procedure eliminates its own estimation uncertainty. These pairwise surface differences must not be subtracted from shared-table RMSEs: they use different queries and error definitions.
 
-B is a collection of separate two-dimensional representations of the recorded groups, not a continuously interpolated three-current model. Small excitation-current fluctuations within each group remain present in its source data. Only the 3000 rpm group is available in the two selected full evaluations, so no comparison across machine speeds is possible here.
+\subsection{Shared-table reconstruction and missing-group prediction}
+\ResultTables
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{overview.png}
+\caption{Overall method comparison. Upper panels: joint RMSE on the same interior whole-group prediction support for A--H. Lower panels: cumulative distributions of vector error on that support. The curves allow an error--coverage assessment without imposing an application-independent acceptance threshold.}\label{fig:overview}\end{figure}
+The reconstruction rows include the entire storage-and-return operation. They use the source points again and therefore measure approximation of available data rather than prediction of new excitation groups. The prediction rows remove a full group, refit all parameters from the remaining data and then query the unseen group. These two rows of evidence must not be interchanged.
 
-\subsection{Residuals, coverage, and saved-map comparison}
-For \(x\in\{d,q\}\), define
-\[
-r_{x,B}=\psi_{x,B}-\psi_{x,A},\qquad r_{x,C}=\psi_{x,C}-\psi_{x,A}.
-\]
-A method's own mask requires both returned flux components to be finite. The common mask is the intersection of these masks. RMSE and maximum absolute residual are calculated componentwise on the stated mask. Figures comparing B with C use the common mask; the MAT output retains both masks, both summaries, and per-excitation summaries.
+On the common interior prediction points, A has joint RMSE values of 5.998, 6.309 and 6.970 mVs in Sets 1--3. C gives 5.518, 5.736 and 6.996 mVs: optimizing a joint training criterion improves the first two sets but does not improve the unseen-group aggregate in Set 3. B also does not rank uniformly above or below C. These outcomes preclude attributing the remaining error solely to the conventional estimator or to moving q-current.
 
-\begin{table}[htbp]
-\centering\small
-\caption{Saved-map reconstruction errors, all in mWb. Own support is method-specific; common support uses identical points for B and C within each dataset. Source counts are 7476 and 8092.}\label{tab:savedmaps}
-\begin{tabular}{cllrrrrr}
-\toprule
-Set & Map & Mask & \(N\) & RMSE d & RMSE q & Max d & Max q\\
-\midrule
-1 & B: complete & Own & 6761 & 0.292 & 0.178 & 7.503 & 1.870\\
-1 & C: merged & Own & 7357 & 5.336 & 4.169 & 38.497 & 28.765\\
-1 & B: complete & Common & 6759 & 0.292 & 0.178 & 7.503 & 1.870\\
-1 & C: merged & Common & 6759 & 5.538 & 4.331 & 38.497 & 28.765\\
-\midrule
-2 & B: complete & Own & 7319 & 0.313 & 0.177 & 7.392 & 1.792\\
-2 & C: merged & Own & 7968 & 5.665 & 4.173 & 44.725 & 29.880\\
-2 & B: complete & Common & 7315 & 0.313 & 0.174 & 7.392 & 1.751\\
-2 & C: merged & Common & 7315 & 5.884 & 4.333 & 44.725 & 29.880\\
-\bottomrule
-\end{tabular}
-\end{table}
+E gives 5.453, 5.470 and 6.839 mVs; F gives 5.490, 5.653 and 6.529 mVs; G gives 5.513, 5.443 and 6.425 mVs. E is the best reduced candidate in Set 1, and G is best in Sets 2 and 3. G's advantage over E in Set 2 is only 0.027 mVs, while G is slightly worse than E in Set 1. In Set 3 its advantage over the simpler F is 0.104 mVs, with a lower d-flux error but a higher q-flux error. The ranking therefore depends on machine configuration and on the equal-component aggregate used here.
 
-The complete slices reproduce their source measurements much more closely on average than the merged map. Their maxima show that even B is not exact. Its residual includes the existing individual map construction and the bilinear return; the separate excitation maps have already been resampled.
+H gives 1.787, 1.780 and 1.480 mVs, substantially below every reduced candidate on the identical points. The common prediction coverages are 89.15\%, 89.03\% and 90.75\% of the eligible interior points. This is a strong empirical accuracy advantage for retaining excitation in these data, although it includes the stated interpolation and storage effects and is not a proof against every possible two-coordinate representation.
 
-Figures~\ref{fig:savedset1} and~\ref{fig:savedset2} show both components against source values, physical current-space residuals, and RMSE by excitation reference. In Set 2 the merged d-flux RMSE ranges from approximately \(3.85\) to \(8.12\) mWb across groups. The q-flux RMSE is approximately \(1.99\) mWb at 20 A and \(7.25\) mWb at 40 A. Set 1 shows a similar increase towards high excitation. Thus the discrepancy is structured in current space and excitation, rather than a single constant flux offset.
+The cumulative error curves are conditional on common supported points. To express a retained fraction relative to all eligible points, multiply the plotted fraction by the reported common coverage. Missing support is not a zero-error observation.
 
-\begin{figure}[p]
-\centering\includegraphics[width=\linewidth,height=0.84\textheight,keepaspectratio]{reduction_set1.png}
-\caption{Set 1 on 6759 common points. Rows: reconstructed versus measured flux, complete-slice residuals, merged-map residuals, and per-group RMSE. Residuals are returned minus measured. Within each flux component the spatial panels share color limits. Spatial plots overlay excitation groups; bottom panels retain group distinctions.}\label{fig:savedset1}
-\end{figure}
-\begin{figure}[p]
-\centering\includegraphics[width=\linewidth,height=0.84\textheight,keepaspectratio]{reduction_set2.png}
-\caption{Set 2 on 7315 common points. Complete-slice residuals are close to zero on the color scale required for the merged residuals. Each group uses its own common-point subset: the bottom panels do not imply identical physical current support across excitation references.}\label{fig:savedset2}
-\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{reconstruction_set2.png}
+\caption{Representative Set 2 group for C. Each flux row compares the original and reconstruction in 3D at the left and shows the signed physical-current error at the right. Only supported parts of the original excitation graph are displayed. Numerical tables use point-based errors rather than this display grid.}\label{fig:reconstruction2}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{reconstruction_set3.png}
+\caption{The corresponding representative view for the separate machine in Set 3. The atlas supplies the same comparison for every excitation group and method.}\label{fig:reconstruction3}\end{figure}
 
-\subsection{Separating source arithmetic, gridding, and model reduction}
-Using stored averaged measured voltages, measured stator currents, stored \(R_s\), and averaged electrical angular speed, the stationary formulas reproduce A to a maximum absolute discrepancy below \(1.4\,10^{-17}\) Wb. This establishes arithmetic consistency with the saved processed signals. It cannot establish their absolute calibration or rule out errors inherited from measurement and preprocessing.
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set1.png}
+\caption{Set 1 per-group RMSE. Upper panels: reconstruction. Lower panels: interior whole-group prediction. A missing boundary marker denotes absence from the all-model interior comparison, not an observed zero error. Boundary results are reported separately.}\label{fig:rmse1}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set2.png}
+\caption{Set 2 per-group RMSE with the same definitions and common-support policy.}\label{fig:rmse2}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set3.png}
+\caption{Set 3 per-group RMSE. Each curve's parameters were identified independently for this machine configuration.}\label{fig:rmse3}\end{figure}
 
-The saved map branches are parallel. Complete slices originate in individual \texttt{Calc.Grid} representations, whereas the merged flux grid is constructed directly from sheared measured flux samples. B is not an intermediate stage through which C necessarily passes. Subtracting their RMSE values, or assigning the squared-error difference to one independent physical cause, would be unjustified.
+\begin{table}[htbp]\centering\small\caption{Fitted variable-shift coefficients in A/A. Empty coefficients are shown as NaN. The current scales come from the respective training dataset; coefficients of different datasets are not directly transferable.}\ParameterTable\label{tab:parameters}\end{table}
+\begin{table}[htbp]\centering\small\caption{Number of fitting runs with a nonpositive termination flag, including the all-data fit and every outer fit. Finite-budget outcomes are retained transparently rather than called converged optima.}\OptimizerTable\label{tab:optimization}\end{table}
+The coefficients describe restricted coordinate functions, not independent shifts fitted to each final group. Because each outer prediction uses its own training fit, the all-data coefficient table alone does not reproduce the prediction curves; the fold parameters are part of the saved numerical result. G's positive fixed-excitation Jacobian is checked at every held-out physical point as well as on its training box. The fold geometry report also counts points outside the training-current box; support in reduced coordinates alone is not evidence of interpolation in every physical current.
 
-Rebuilding the saved merged grid from measured projected points with linear scattered interpolation reproduces its finite flux values to roundoff. The scattered field also reproduces original source nodes to roundoff. The nonzero C--A residual therefore appears when that same scattered field is sampled onto the saved regular grid and bilinearly returned to source coordinates. This gives a direct operational explanation of the observed saved-map return error without requiring a new flux calculation or a changed machine speed.
+All B--F fits meet their stated numerical termination criterion. Four of the 40 G fits, counting the all-data and outer fits, reach a finite search limit instead. Their best visited coefficients are retained, but G's ranking is consequently a comparison of computed candidates, not a certified converged optimum. This further limits the case for preferring its additional complexity on the basis of very small RMSE differences.
 
-To quantify this operation, keep the saved factor, saved axis extents, and underlying scattered field fixed, and vary only regular-grid size. These extents differ from the measured-coordinate bounds of the earlier controlled experiment in Section~\ref{sec:numerics}. Use one common finite mask across resolutions, restricted to original merged-map support.
+Across all 37 held-out groups, the smallest evaluated G Jacobian is 0.759; none is nonpositive or below the training margin of 0.25. This confirms the fixed-other-currents monotonicity check at the evaluated points, while the separate empirical excitation-graph folding check remains necessary.
 
-\begin{table}[htbp]
-\centering\small
-\caption{Raster roundtrip on saved axis extents and fixed masks. Errors are in mWb. The 101-node row reproduces the saved map's own-support result.}\label{tab:savedraster}
-\begin{tabular}{crrrrrr}
-\toprule
-Set & Nodes per axis & \(N\) & RMSE d & RMSE q & Max d & Max q\\
-\midrule
-1 & 101 & 7357 & 5.336 & 4.169 & 38.497 & 28.765\\
-1 & 201 & 7357 & 3.991 & 2.809 & 39.696 & 29.679\\
-1 & 401 & 7357 & 2.721 & 1.779 & 40.154 & 24.578\\
-2 & 101 & 7968 & 5.665 & 4.173 & 44.725 & 29.880\\
-2 & 201 & 7968 & 4.235 & 2.810 & 43.216 & 29.419\\
-2 & 401 & 7968 & 2.977 & 1.742 & 42.143 & 23.468\\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{Boundary groups and unsupported extrapolation}
+\begin{table}[htbp]\centering\small\caption{Boundary-group prediction for representative methods. C/G use the reduced-model common support. H uses its own support and is therefore not a matched-support accuracy comparison with C/G. Excitation is nominal, in A. Full A--H boundary metrics are supplied per group in the numerical material.}\BoundaryTable\label{tab:boundary}\end{table}
+Boundary removal is more demanding than interpolation between retained excitation groups. H can lose all support when no remaining point surrounds the query in physical three-current space. Reduced coordinates may remain supported even though excitation lies outside the observed training range. The reported boundary errors assess only those available measured points; they do not validate unrestricted excitation extrapolation or an unmeasured operating range.
 
-Average errors decrease substantially with resolution, but large maxima remain and need not decrease monotonically. This is consistent with steep local variations in the merged scattered field; it does not demonstrate that every such variation arises from invalid physical reduction. Exact source-node return is also not evidence of lossless reduction: interpolation has seen every source value. The missing-excitation-group experiment in Section~\ref{sec:holdout} supplies the complementary prediction check.
+\subsection{Numerical controls and excitation-reference sensitivity}
+\begin{table}[htbp]\centering\small\caption{Scaling and raster controls. The four scaling rows use one common physical mask per dataset. The three raster rows use a separate common mask across the three raster resolutions. Counts are therefore not interchangeable between controls. Errors are in mVs.}\NumericalTable\label{tab:numerical}\end{table}
+Raw and normalized axes can generate different triangulations even with identical source values. Differences between a normalized 3D reference and an unnormalized 2D reduction would mix coordinate-model and numerical effects. Here both are normalized in the primary comparison, and the four-way control makes the scaling dependence visible. Changing raster density quantifies the storage contribution for A without identifying a unique physical cause of the remaining error. RMSE differences between these rows are not subtracted to estimate a structural error component.
 
-\subsection{A small constant-factor variation}
-The script repeats the merged construction for \(k=12,12.5,\ldots,16\), additionally including each saved factor. Saved \(101\times101\) axis coordinates remain fixed. Each candidate changes projected measured points, triangulation, and query positions, while retaining source flux values. A single mask is used for every candidate and both components, also restricted to B--C common support: 6658 points in Set 1 and 7196 in Set 2.
+\begin{table}[htbp]\centering\small\caption{Sensitivity of the A table output to replacing measured excitation by the nominal group label at the query. These are differences between two returned predictions, not measurement errors.}\NominalTable\label{tab:nominal}\end{table}
+Within-group excitation scatter therefore has a concrete coordinate consequence. This calculation keeps the same shared table and changes only the query. It is separate from the fixed-reference convention of a relabelled historical single-group table. The source audit confirms the actual convention of each available historical export rather than assuming that every export already carries current metadata.
 
-The best sampled candidate minimizes \(\operatorname{RMSE}_d^2+\operatorname{RMSE}_q^2\). All measured samples also train these fields. This is a reconstruction diagnostic, not predictive factor selection; intermediate candidate values have not been optimized.
-
-\begin{table}[htbp]
-\centering\small
-\caption{Saved and best sampled factors on fixed sweep masks. Errors are in mWb; \(k\) is in A/A. These masks differ from Table~\ref{tab:savedmaps}.}\label{tab:ksweep}
-\begin{tabular}{clrrrrrr}
-\toprule
-Set & Candidate & \(k\) & \(N\) & RMSE d & RMSE q & Max d & Max q\\
-\midrule
-1 & Saved & 13.49094 & 6658 & 5.575 & 4.362 & 38.497 & 28.765\\
-1 & Best sampled & 14.00000 & 6658 & 4.879 & 4.120 & 32.135 & 28.142\\
-2 & Saved & 13.51685 & 7196 & 5.928 & 4.368 & 44.725 & 29.880\\
-2 & Best sampled & 14.50000 & 7196 & 5.067 & 4.043 & 31.094 & 25.916\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The combined RMS magnitude decreases by approximately 9.8 percent in Set 1 and 12.0 percent in Set 2. Neither candidate approaches the average accuracy of the separate saved slices. The d and q components prefer different trends as \(k\) changes, consistent with satisfying two flux constraints together. The best sampled reconstruction factor need not equal the derivative-based global factor: objectives and interpolation effects differ.
-
-\begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{reduction_processing.png}
-\caption{Saved-extent raster refinement at fixed saved \(k\) (top) and the small \(k\) sweep at fixed raster axes (bottom). Masks are fixed within each comparison but differ between top and bottom. Dashed lines mark saved factors.}\label{fig:reductionprocessing}
-\end{figure}
-
-\subsection{Established findings and consequence for MeasEval}
-\begin{enumerate}
-\item The coordinate shift itself changes no flux value. The stationary calculation is consistent with stored inputs to roundoff; absolute measurement accuracy remains unresolved.
-\item Individual slice construction and lookup introduce small average residuals, with some larger isolated errors.
-\item The actual merged-grid roundtrip creates much larger reconstruction residuals. Refinement demonstrably reduces their average magnitude. This identifies an interpolation and representation effect at the original measurement speed.
-\item Changing one constant factor improves the tested result moderately but does not remove its discrepancy. This sweep cannot assign a numerical percentage to physical information loss: it also changes triangulation and raster sampling.
-\item The separate derivative and whole-group holdout results provide additional evidence against an exact common constant reduction over this domain. The tested three-current predictor has lower missing-group errors. A complete causal partition of measurement noise, interpolation, and structural reduction error is not identified.
-\end{enumerate}
-A full three-current representation retains excitation explicitly and avoids imposing equation~\eqref{eq:fiberresidual} as zero. It still needs adequate sampling, suitable interpolation, and reliable measurements; it is not automatically exact. The evidence favors investigating it when accuracy across excitation is required. Improving the constant factor and raster resolution remain useful approximations, but their benefit should be checked with withheld excitation groups rather than source-node reconstruction alone.
-
+Three small analytic controls were evaluated directly. Moving between distinct physical points on a fibre gives zero discrepancy for an exact constant shift; the integrated variable shift agrees to about $1.1\times10^{-16}$ Vs. Replacing the integrated shift by $i_e k_{\mathrm{diff}}$ in that example gives a maximum error of 0.27 Vs. A deliberately incompatible example gives the same $(s,q)$ but q-flux values separated by 2 Vs. These controls illustrate the mathematical distinctions; their arbitrary scales are not machine-accuracy benchmarks.
+\FloatBarrier
