@@ -16,6 +16,11 @@
 
 *.asv
 __pycache__/
+/results/
+/winding_factor_study/*.aux
+/winding_factor_study/*.log
+/winding_factor_study/*.out
+/winding_factor_study/*.xdv
 
 # The ParamGUI implementation stays local; its field contract is in Mapping/.
 /Resources/GUI_VICE-ParamKit_R3310/

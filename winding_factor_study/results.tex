@@ -1,0 +1,132 @@
+% Numerical tables from results/winding_validation.mat; run dated 23 October 2026.
+
+\newcommand{\DataTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Evaluated datasets. Excitation ranges denote nominal group labels.}\label{tab:data}
+\begin{tabular}{lrrrr}
+\toprule
+Set & Points & Groups & Excitation range in A & Speed in rpm \\
+\midrule
+1 & 7476 & 13 & 2--40 & 3000 \\
+2 & 8092 & 14 & 0--40 & 3000 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\FactorTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Primary 40-neighbor factors, in A/A. Separate ratios have their own denominator masks; their medians do not represent identical point sets.}\label{tab:factors}
+\begin{tabular}{lrrrrr}
+\toprule
+Set & $k_{\rm ME}$ & Median $k_d^{(\psi_d)}$ & Median $k_d^{(\psi_q)}$ & Median $k_{\rm LS}$ & $k_G$ \\
+\midrule
+1 & 13.49094 & 13.10158 & 16.43857 & 13.31416 & 13.95493 \\
+2 & 13.51685 & 13.12494 & 16.31532 & 13.31159 & 14.11822 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\ResidualTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Primary 40-neighbor coupling diagnostics. The last three columns give relative derivative residuals in percent; $\eta$ is in 1. $N_a$ counts the common-vector mask. Angular statistics additionally omit negligible $\mathbf b$.}\label{tab:residuals}
+\begin{tabular}{lrrrrrr}
+\toprule
+Set & $N_a$ & Median $\eta$ & 95th $\eta$ & $\rho(k_{\rm ME})$ & $\rho(k_G)$ & $\rho_{\rm local}$ \\
+\midrule
+1 & 6867 & 0.0847 & 0.4401 & 15.73 & 15.38 & 9.35 \\
+2 & 7657 & 0.0832 & 0.4328 & 15.20 & 14.61 & 8.63 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\SensitivityTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Neighborhood comparison on identical retained points per dataset. Factors are in A/A; residuals are in percent. These restricted-domain values differ from full-mask values in Table~\ref{tab:factors}.}\label{tab:sensitivity}
+\begin{tabular}{lrrrrr}
+\toprule
+Set & Neighbors & Common points & $k_G$ & Median $k_{\rm LS}$ & $\rho(k_G)$ \\
+\midrule
+1 & 20 & 5662 & 13.93286 & 13.41023 & 14.23 \\
+1 & 40 & 5662 & 13.89967 & 13.43921 & 13.44 \\
+1 & 80 & 5662 & 13.81825 & 13.40340 & 12.90 \\
+2 & 20 & 6527 & 14.10769 & 13.44507 & 13.74 \\
+2 & 40 & 6527 & 14.07478 & 13.43422 & 13.10 \\
+2 & 80 & 6527 & 13.98818 & 13.41086 & 12.72 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\PredictionTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Whole-interior-group holdout. RMSE and maximum absolute errors are in mWb. All predictors use the same supported held-out points within a dataset.}\label{tab:prediction}
+\begin{tabular}{llrrrrr}
+\toprule
+Set & Predictor & RMSE d & RMSE q & Max d & Max q & Points \\
+\midrule
+1 & 2D, contour & 6.946 & 5.768 & 49.333 & 40.516 & 6238 \\
+1 & 2D, global LS & 6.679 & 5.553 & 36.869 & 35.532 & 6238 \\
+1 & Full 3D & 2.116 & 0.821 & 10.376 & 5.868 & 6238 \\
+2 & 2D, contour & 7.319 & 5.664 & 50.278 & 32.495 & 6819 \\
+2 & 2D, global LS & 6.782 & 5.299 & 35.468 & 33.819 & 6819 \\
+2 & Full 3D & 2.116 & 0.832 & 10.493 & 4.235 & 6819 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\RasterTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{All-data raster roundtrip at common points across the three resolutions. Error columns are in mWb. Bounds use the projected measured-current range; these are newly calculated controlled results, not a replay of saved GUI breakpoints.}\label{tab:raster}
+\begin{tabular}{lrrrrrr}
+\toprule
+Set & Nodes per axis & Points & RMSE d & RMSE q & Max d & Max q \\
+\midrule
+1 & 101 & 7273 & 5.331 & 4.196 & 42.268 & 28.768 \\
+1 & 201 & 7273 & 4.013 & 2.819 & 40.943 & 28.800 \\
+1 & 401 & 7273 & 2.896 & 1.765 & 34.405 & 20.946 \\
+2 & 101 & 7865 & 5.810 & 4.209 & 47.323 & 35.085 \\
+2 & 201 & 7865 & 4.382 & 2.842 & 48.778 & 30.057 \\
+2 & 401 & 7865 & 2.957 & 1.767 & 45.954 & 22.755 \\
+\bottomrule
+\end{tabular}
+\end{table}}
+
+\newcommand{\FoldTable}{%
+\begin{table}[htbp]
+\centering\small
+\caption{Held-out nominal excitation current in A; supported/available held-out points and training-only factors in A/A. Boundary excitation groups are excluded.}\label{tab:folds}
+\begin{tabular}{lrrrr}
+\toprule
+Set & Held-out excitation & Common/available & Contour $k$ & Global LS $k$ \\
+\midrule
+1 & 5 & 560/578 & 13.52627 & 13.84270 \\
+1 & 8 & 564/578 & 13.52200 & 13.87566 \\
+1 & 11 & 572/578 & 13.50690 & 13.88840 \\
+1 & 14 & 570/578 & 13.51248 & 13.92833 \\
+1 & 17 & 568/578 & 13.49090 & 13.95775 \\
+1 & 20 & 571/578 & 13.48282 & 13.96639 \\
+1 & 23 & 571/578 & 13.48600 & 13.97110 \\
+1 & 26 & 570/578 & 13.47814 & 13.98089 \\
+1 & 29 & 574/578 & 13.47000 & 13.99763 \\
+1 & 32 & 565/578 & 13.46384 & 13.99012 \\
+1 & 36 & 553/568 & 13.46515 & 14.01395 \\
+2 & 2 & 560/578 & 13.51422 & 13.90716 \\
+2 & 5 & 570/578 & 13.54445 & 14.07193 \\
+2 & 8 & 568/578 & 13.55065 & 14.05140 \\
+2 & 11 & 573/578 & 13.53764 & 14.08137 \\
+2 & 14 & 569/578 & 13.53244 & 14.11648 \\
+2 & 17 & 569/578 & 13.52054 & 14.14175 \\
+2 & 20 & 572/578 & 13.50678 & 14.14382 \\
+2 & 23 & 570/578 & 13.51568 & 14.14376 \\
+2 & 26 & 573/578 & 13.50887 & 14.14923 \\
+2 & 29 & 570/578 & 13.49980 & 14.16147 \\
+2 & 32 & 564/578 & 13.49862 & 14.15843 \\
+2 & 36 & 561/578 & 13.49041 & 14.18629 \\
+\bottomrule
+\end{tabular}
+\end{table}}
