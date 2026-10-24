@@ -17,7 +17,7 @@ Execution order (all commands from `C:/Git/Winding_Factor`):
    all group figures and generated manuscript tables.
 6. Compile `main.tex` and `atlas.tex`, render and inspect the PDFs.
 
-Final build: 25 manuscript pages and 297 atlas pages. Both PDFs compiled twice;
+Final build: 24 manuscript pages and 297 atlas pages. Both PDFs compiled twice;
 all pages were rendered and visually surveyed, with enlarged checks of the changed figures.
 No unresolved references or overfull boxes remain.
 
@@ -103,7 +103,7 @@ Review mapping:
 | No outer-group leakage | inner fitting inside each outer fold; prediction section |
 | Identical support, signed errors, per-group coverage | metric masks/CSV; complete atlas |
 | Raster and coordinate scaling | controls in comparison script; numerical-control results |
-| English narrative, checked references, no working-note citation | rewritten main manuscript |
+| English narrative, no external citations as subsequently requested | rewritten main manuscript |
 | Executed controls, compiled PDFs, recommendation, review fixes | generated outputs and final handover |
 
 The detailed authorized specification is the user's attached research request. No test framework,

@@ -70,8 +70,8 @@ Im durchgeführten Lauf wurden die drei unabhängigen Datensätze parallel in ei
 MATLAB-Prozessen mit `maxNumCompThreads(2)` und `analyze_flux_map_reduction(1)`,
 `(2)` beziehungsweise `(3)` berechnet. Die korrigierten Läufe benötigten ungefähr
 1.000, 1.226 und 943 Sekunden. Die Logs liegen in `results/reduction_set*.log`.
-MATLAB-Version: R2025b. Die Literaturangaben wurden anhand der Originalquellen
-beziehungsweise DOI-Metadaten geprüft.
+MATLAB-Version: R2025b. Externe Zitate und das Literaturverzeichnis wurden auf
+Wunsch aus dem Paper entfernt.
 
 Die Datenherkunft, Detailausgaben und Zuordnung der Review-Anforderungen stehen
 in [RUN.md](RUN.md). Die vollständigen Einzelgruppen-Vergleiche stehen im Atlas;

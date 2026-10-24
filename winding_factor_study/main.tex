@@ -2,7 +2,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[margin=23mm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,bm,graphicx,booktabs,longtable,placeins,xcolor}
-\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
 \graphicspath{{figures/}}
 \setlength{\parindent}{0pt}\setlength{\parskip}{4pt}\setlength{\emergencystretch}{2em}
 \newcommand{\ps}{\bm\psi}\newcommand{\dd}{\mathrm d}
@@ -23,7 +23,7 @@ An electrically excited synchronous machine has three independently adjustable c
 \end{equation}
 Throughout this paper, ``lossless'' means only lossless with respect to these two functions. It does not mean a lossless physical machine. No additional magnetic scalar model is introduced.
 
-Measured EESM flux identification requires attention to voltage measurement and machine nonlinearities; an experimental procedure for a double-stator EESM is described by Turk et al.~\cite{turk}. That work supports the measurement context, not the specific coordinate reduction examined here. Our reduction conditions are derived explicitly below and evaluated on the available measurements.
+The reduction conditions are derived explicitly below and evaluated on the available measurements.
 
 We first explain the existing contour estimator, then derive exactness conditions. Their estimated violations motivate a hierarchy of restricted coordinate models. Two experiments address different questions: a shared-table reconstruction asks how much error remains after merging and storage; a whole-group prediction asks whether an unseen excitation level can be represented without fitting to it. A separate comparison between shifted original surfaces checks compatibility before merging. The complete per-group visual record is supplied in a companion atlas.
 
@@ -163,7 +163,7 @@ is dimensionless. Neither quantity is a flux RMSE. Integrating a derivative resi
 \subsection{How the derivatives are estimated}
 At each measured current point we fit both flux components to separate local affine functions of the three currents. Current coordinates are range-normalized. The nearest 40, 80 or 120 points enter a Gaussian-distance-weighted least-squares fit; the primary count is 80. A neighborhood must contain at least two excitation groups, and ill-conditioned local designs are omitted. The fitted slopes are converted back to H. Low d-sensitivity vectors are excluded from joint-factor identification, and small component denominators are excluded from the separate ratios. The thresholds are numerical conditioning rules relative to the median sensitivity, not physical validity bounds.
 
-Local regression estimates a slope from a neighborhood and generally does not interpolate every sample. This is the basic distinction motivating local fitting~\cite{cleveland}. A radial-basis interpolant instead forms a weighted sum of distance kernels, with coefficients typically obtained from a global interpolation system; it is neither this local affine regression nor an independent measurement of inductance. No RBF replacement is used here. Neighbor count, noise, curvature and uneven sampling affect all reported derivatives. The sensitivity comparison uses common retained derivative points across neighborhood counts.
+Local regression estimates a slope from a neighborhood and generally does not interpolate every sample. A radial-basis interpolant instead forms a weighted sum of distance kernels, with coefficients typically obtained from a global interpolation system; it is neither this local affine regression nor an independent measurement of inductance. No RBF replacement is used here. Neighbor count, noise, curvature and uneven sampling affect all reported derivatives. The sensitivity comparison uses common retained derivative points across neighborhood counts.
 
 \section{Restricted improvements and their mathematical limits}\label{sec:models}
 \subsection{Constant and integrated shifts}
@@ -231,7 +231,7 @@ for A--C, with the corresponding coordinate map for the other methods. A shared 
 
 An interpolant passing through distinct transformed training nodes can reproduce all training values even when nearby excitation surfaces disagree. Such interpolation identity does not establish physical exactness of the reduction. Raster reconstruction deliberately evaluates the shared representation after a finite storage operation; the independent-surface and missing-group experiments address additional questions.
 
-Axes are normalized by their training ranges before triangulation. A simplex is rejected if any squared edge length exceeds nine times the mean squared length of the unique edges. Evaluation outside the retained support is missing, and a raster cell touching a missing node remains unavailable. This is a stated numerical support rule, not a calibrated physical domain. It avoids filling large unsupported gaps with artificial surfaces. Linear Delaunay interpolation and its scaling sensitivity are documented by MathWorks~\cite{matlab}. Primary comparisons normalize both the 2D and 3D coordinates; a raw-coordinate control is also run for both dimensions.
+Axes are normalized by their training ranges before triangulation. A simplex is rejected if any squared edge length exceeds nine times the mean squared length of the unique edges. Evaluation outside the retained support is missing, and a raster cell touching a missing node remains unavailable. This is a stated numerical support rule, not a calibrated physical domain. It avoids filling large unsupported gaps with artificial surfaces. Primary comparisons normalize both the 2D and 3D coordinates; a raw-coordinate control is also run for both dimensions.
 
 Every reduced model uses 81 nodes per reduced axis. H uses 81 nodes per physical stator axis and between five and 21 excitation nodes, based on distinct rounded measured excitation values. Its realized dimensions are reported. A separate 41/81/161-node study changes only the rasterization of A. It is a numerical control, not a proposed remedy for a deficient coordinate model.
 
@@ -307,17 +307,4 @@ The atlas contains one page for every dataset, nominal excitation group and mode
 
 The d-flux 3D view places q-current on its first displayed axis and d-current on its second to show the surface more clearly. Error maps retain the physical d/q order. Axis units are written as ``in A'' and ``in mVs''. Atlas pages use one shared LaTeX template and nested loops over excitation groups and methods; the generated page list contains only the three dataset definitions.
 
-\clearpage
-\begin{thebibliography}{9}
-\bibitem{turk}N.~Turk, D.~Cika\v{c}, N.~Buli\'{c}, and S.~Barbanti,
-``A Novel Experimental Method for Identifying the Flux Linkage Map of a High-Power Medium-Voltage Electrically Excited Synchronous Machine with Double Stator Winding,''
-\emph{Machines}, vol.~10, no.~3, article~187, 2022.
-\href{https://doi.org/10.3390/machines10030187}{doi:10.3390/machines10030187}.
-\bibitem{cleveland}W.~S.~Cleveland and S.~J.~Devlin,
-``Locally Weighted Regression: An Approach to Regression Analysis by Local Fitting,''
-\emph{Journal of the American Statistical Association}, vol.~83, no.~403, pp.~596--610, 1988.
-\href{https://doi.org/10.1080/01621459.1988.10478639}{doi:10.1080/01621459.1988.10478639}.
-\bibitem{matlab}MathWorks, ``Interpolating Scattered Data'' and ``scatteredInterpolant,'' MATLAB documentation, accessed 24 October 2026.
-\url{https://www.mathworks.com/help/matlab/math/interpolating-scattered-data.html}.
-\end{thebibliography}
 \end{document}
