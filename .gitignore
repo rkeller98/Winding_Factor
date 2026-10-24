@@ -23,6 +23,11 @@ __pycache__/
 /winding_factor_study/*.xdv
 /winding_factor_study/figures/atlas/
 /winding_factor_study/*.toc
+/function_model_study/**/*.aux
+/function_model_study/**/*.log
+/function_model_study/**/*.out
+/function_model_study/**/*.toc
+/function_model_study/figures/atlas/
 
 # The ParamGUI implementation stays local; its field contract is in Mapping/.
 /Resources/GUI_VICE-ParamKit_R3310/

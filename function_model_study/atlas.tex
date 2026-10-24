@@ -1,0 +1,34 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[landscape,margin=12mm]{geometry}
+\usepackage{graphicx,pgffor,hyperref}
+\setlength{\parindent}{0pt}
+\newcommand{\AtlasDataset}[3]{%
+ \foreach \level [count=\groupindex from 1] in {#2}{%
+  \edef\groupid{\ifnum\groupindex<10 0\fi\groupindex}%
+  \foreach \method in {#3}{%
+   \clearpage
+   \section*{Dataset #1, \method, group \groupindex}
+   \includegraphics[width=\linewidth,height=.80\textheight,keepaspectratio]{figures/atlas/set#1_group\groupid_\method.png}
+   \par\small Blue: reference; orange: reconstruction. Signed errors in mVs.
+   White regions have no common numerical support. Dataset 4 is a processed temperature fixture.
+  }%
+ }%
+}
+\title{Coefficient-Based Flux Maps: Complete Group Atlas}
+\author{Flux Map Research Study}\date{24 October 2026}
+\begin{document}\maketitle
+Both stator flux components are shown for every group and applicable model.
+Figure titles identify training, validation-refit, independent excitation test and upper-boundary cases.
+Upper-boundary reconstruction is unavailable outside the physical training range.
+\par\medskip
+The d-flux 3D view exchanges displayed d/q axes. Error maps retain physical d/q order.
+Scales are shared within a dataset. Reference surfaces preserve source-triangle gaps;
+signed errors use common support across methods. Display grids do not replace point-based metrics.
+The intersection can also mask finite coefficient-model predictions, including training
+boundary slices where the raster LUT has no complete interpolation cells.
+\par\medskip
+Dataset 4 has unverified acquisition provenance and two temperature bands. It is a processed-reference
+implementation exercise with spatial holdout, not independent temperature-validation evidence.
+\centering\input{atlas_pages.tex}
+\end{document}

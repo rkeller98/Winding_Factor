@@ -1,5 +1,11 @@
 # EESM stator-flux coordinate reduction
 
+The separate coefficient-model comparison is in
+[function_model_study](function_model_study/RUN.md). Start it with
+`run_flux_function_study`: shared Gaussian RBFs, cubic tensor splines,
+full LUT and the existing k variants, including Set3. The original reduction
+paper below is preserved.
+
 Research comparison of seven k-based two-coordinate models and a complete
 three-current reference, using Set1, Set2 and the freshly processed Set3.
 The paper and figure labels remain in English.
