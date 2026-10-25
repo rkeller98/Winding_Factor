@@ -42,6 +42,9 @@ for step_index = 1:numel(steps)
     else
         feval(steps{step_index});
     end
+    if step_index == 2
+        plot_local_winding_factors;
+    end
 end
 
 drawnow;
