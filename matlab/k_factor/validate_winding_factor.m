@@ -1,5 +1,9 @@
+function validate_winding_factor
 %% Local derivative evidence, estimator diagnostics and analytic numerical controls.
-root=fileparts(mfilename('fullpath')); addpath(root); out=fullfile(root,'results');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('k_factor');
+out=fullfile(root,'results');
+require_analysis_file(fullfile(out,'reduction_data.mat'),'prepare_reduction_data');
 v=load(fullfile(out,'reduction_data.mat'),'data'); data=v.data;
 neighbors=[40 80 120]; study=cell(3,1); summary=[];
 for s=1:3
@@ -69,6 +73,8 @@ controls=table(constant_error,integrated_error,product_error,incompatible_gap(2)
     'VariableNames',{'constant_max_Vs','integrated_max_Vs','wrong_product_max_Vs','incompatible_gap_Vs','determinant'});
 writetable(controls,fullfile(out,'analytic_controls.csv')); disp(controls);
 save(fullfile(out,'winding_validation.mat'),'study','summary','neighbors','controls','-v7');
+
+end
 
 function p=percentile(x,q)
 x=sort(x(isfinite(x))); p=x(ceil(q*numel(x)));

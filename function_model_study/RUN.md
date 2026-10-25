@@ -1,6 +1,12 @@
 # Flux function models: execution and provenance
 
-English paper and figures; German handover. Existing k-factor paper and production
+Current layout: this study is in `matlab/function_model/`; shared
+preparation and numerical helpers are in `matlab/common/`. In a fresh session
+use `addpath('/absolute/path/to/Winding_Factor/matlab/function_model')` before the commands below.
+The project-root `run_matlab_analysis` runs both studies in order. Outputs remain
+in their original locations; all regular plot figures now stay open after export.
+
+English paper and figures; English handover. Existing k-factor paper and production
 controller files stay unchanged. Branch: `codex/flux-function-models`.
 Final outputs: 11 manuscript pages and 377 atlas pages (376 group/model figures).
 Both PDFs compiled successfully and were rendered for visual inspection; no unresolved

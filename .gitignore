@@ -18,6 +18,7 @@
 *.asv
 *.synctex.gz
 __pycache__/
+.venv/
 /results/
 /winding_factor_study/*.aux
 /winding_factor_study/*.log

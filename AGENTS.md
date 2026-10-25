@@ -1,7 +1,7 @@
-# Arbeitsstil
+# Working style
 
-- Einfacher, direkt funktionierender Code im Quick-and-dirty-Stil.
-- Keine Tests, Assertions, Validierungsframeworks oder zusätzliche Infrastruktur.
-- Keine unnötigen Abstraktionen, Metadaten, Prüfberichte oder umfangreiche Dokumentation.
-- Nur das umsetzen, was für die konkrete Problemlösung gebraucht wird.
-- Falls nötig, einmal direkt ausführen; kein Testgerüst dafür anlegen.
+- Simple code that works directly, in a quick-and-dirty style.
+- No tests, assertions, validation frameworks, or additional infrastructure.
+- No unnecessary abstractions, metadata, verification reports, or extensive documentation.
+- Implement only what is needed to solve the specific problem.
+- If necessary, run it directly once; do not create a test harness for it.

@@ -1,11 +1,22 @@
+function plot_flux_function_study
 %% Same surface/error layout as the existing study, in a separate output folder.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
 paper=fullfile(root,'function_model_study');figs=fullfile(paper,'figures');
 if ~isfolder(figs),mkdir(figs);end
 atlas=fullfile(figs,'atlas');if ~isfolder(atlas),mkdir(atlas);end
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
+require_analysis_file(fullfile(out,'comparison.mat'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'rbf_candidates.csv'),'fit_flux_rbf');
+require_analysis_file(fullfile(out,'bspline_candidates.csv'),'fit_flux_bspline');
+require_analysis_file(fullfile(out,'differences_from_LUT.csv'),'compare_fits_with_k_factor');
 a=load(fullfile(out,'data.mat'));data=a.data;
 a=load(fullfile(out,'comparison.mat'));study=a.study;labels=a.labels;metrics=a.metrics;
-set(groot,'defaultFigureVisible','off','defaultAxesFontSize',12,'defaultTextFontSize',12);
+graphics_properties={'defaultAxesFontSize','defaultTextFontSize'};
+graphics_defaults=get(groot,graphics_properties);
+restore_graphics=onCleanup(@() set(groot,graphics_properties,graphics_defaults));
+set(groot,'defaultAxesFontSize',12,'defaultTextFontSize',12);
 blue=[.15 .4 .75];orange=[.95 .4 .1];atlaslist=fopen(fullfile(paper,'atlas_pages.tex'),'w');
 for s=1:numel(data)
  d=data{s};r=study{s};nm=numel(r.models);ng=numel(d.levels);res=1000*(r.prediction-d.y);
@@ -23,7 +34,7 @@ for s=1:numel(data)
   elseif any(d.validation(ix)),role='validation group, included in final refit';
   else,role='training group';end
   for m=1:nm
-   fig=figure('Position',[20 20 1360 740]);theme(fig,'light');
+   fig=figure('Visible','on','Position',[20 20 1360 740]);theme(fig,'light');
    layout=tiledlayout(2,2,'TileSpacing','compact','Padding','compact');
    title(layout,sprintf('%s | %s | %s %g %s | %s',d.name,labels{m}, ...
     d.group_name,d.levels(g),d.group_unit,role),'FontSize',12);
@@ -44,7 +55,7 @@ for s=1:numel(data)
    end
    colormap(fig,diverging_map);
    file=fullfile(atlas,sprintf('set%d_group%02d_%s.png',s,g,labels{m}));
-   exportgraphics(fig,file,'Resolution',100);close(fig);
+   exportgraphics(fig,file,'Resolution',100);
    if s==2&&g==4&&m<=2,copyfile(file,fullfile(figs,['example_' lower(labels{m}) '.png']));end
   end
   fprintf('%s group %d/%d figures complete\n',d.name,g,ng);
@@ -54,7 +65,7 @@ for s=1:numel(data)
 end
 fclose(atlaslist);
 % Requested summary: error over group, and model size versus validation error.
-fig=figure('Position',[20 20 1400 820]);theme(fig,'light');tiledlayout(2,2,'TileSpacing','compact');
+fig=figure('Visible','on','Position',[20 20 1400 820]);theme(fig,'light');tiledlayout(2,2,'TileSpacing','compact');
 for s=1:numel(data)
  nexttile;hold on;d=data{s};r=study{s};
  for m=1:numel(r.models)
@@ -65,9 +76,9 @@ for s=1:numel(data)
  xlabel([d.group_name ' in ' d.group_unit]);ylabel('Joint test RMSE in mVs');title(d.name);grid on;
  legend('Location','best','NumColumns',3,'FontSize',9);
 end
-exportgraphics(fig,fullfile(figs,'group_errors.png'),'Resolution',130);close(fig);
+exportgraphics(fig,fullfile(figs,'group_errors.png'),'Resolution',130);
 b=readtable(fullfile(out,'rbf_candidates.csv'));c=readtable(fullfile(out,'bspline_candidates.csv'));
-fig=figure('Position',[20 20 1320 780]);theme(fig,'light');tiledlayout(2,2,'TileSpacing','compact');
+fig=figure('Visible','on','Position',[20 20 1320 780]);theme(fig,'light');tiledlayout(2,2,'TileSpacing','compact');
 for s=1:numel(data)
  nexttile;hold on;bb=b(b.dataset==s,:);cc=c(c.dataset==s,:);
  scatter(bb.numeric_bytes/1024,sqrt(bb.validation_mVs2),38,'o','DisplayName','RBF candidates');
@@ -75,8 +86,10 @@ for s=1:numel(data)
  xlabel('Numeric online storage in KiB');ylabel('Validation joint RMSE in mVs');
  title(data{s}.name);grid on;legend('Location','best');
 end
-exportgraphics(fig,fullfile(figs,'size_error.png'),'Resolution',130);close(fig);
+exportgraphics(fig,fullfile(figs,'size_error.png'),'Resolution',130);
 write_flux_function_tables;
+
+end
 
 function v=surface_values(x,y,q)
 sc=max(x)-min(x);z=x./sc;dt=delaunayTriangulation(z);t=dt.ConnectivityList;e=edges(dt);

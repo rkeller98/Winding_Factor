@@ -1,10 +1,14 @@
+function prepare_flux_fit_data
 %% Common physical points and explicit training/validation/test partitions.
-root=fileparts(mfilename('fullpath')); addpath(root);
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
 out=fullfile(root,'results','flux_fits'); if ~isfolder(out),mkdir(out);end
 data=cell(3,1); inventory=[];
 for s=1:3
- a=load(fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'extracted', ...
-     'evaluation','research_flux_measurements.mat'),'Total');
+ file=fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'extracted', ...
+     'evaluation','research_flux_measurements.mat');
+ require_analysis_file(file,'prepare_reduction_data');
+ a=load(file,'Total');
  x=[];y=[];nominal=[];temperature=[];speed=[];
  fn=fieldnames(a.Total);
  for j=1:numel(fn)
@@ -53,6 +57,9 @@ if isfile(file)
  inventory=[inventory;4,size(x,1),2,nnz(d.train),nnz(d.validation),nnz(d.test),0, ...
      min(x(:,3)),max(x(:,3)),2500];
 end
+if ~isfile(file)
+ fprintf('Optional temperature fixture absent: %s\nContinuing with the three measured-current datasets.\n',file);
+end
 for s=1:numel(data)
  d=data{s};tr=d.train;
  map=fit_reduction_map(d.x(tr,:),d.y(tr,:),8,[],max(abs(d.x(tr,:))),81,true);
@@ -65,3 +72,5 @@ writetable(array2table(inventory,'VariableNames',{'dataset','points','groups','t
  'validation','test','upper_boundary','temperature_min_C','temperature_max_C','requested_rpm'}), ...
  fullfile(out,'data_inventory.csv'));
 save(fullfile(out,'data.mat'),'data','inventory','-v7');
+
+end

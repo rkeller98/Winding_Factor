@@ -1,5 +1,12 @@
+function compare_flux_fits
 %% Load saved models. Compare values, physical derivatives and scalar evaluation cost.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
+require_analysis_file(fullfile(out,'rbf_models.mat'),'fit_flux_rbf');
+require_analysis_file(fullfile(out,'bspline_models.mat'),'fit_flux_bspline');
+require_analysis_file(fullfile(out,'baseline_models.mat'),'fit_flux_baselines');
 a=load(fullfile(out,'data.mat'));data=a.data;
 a=load(fullfile(out,'rbf_models.mat'));rbf=a.models;
 a=load(fullfile(out,'bspline_models.mat'));spline=a.models;
@@ -87,6 +94,8 @@ writetable(array2table(parameters,'VariableNames',{'dataset','method','terms','f
 writetable(array2table(lookup_checks,'VariableNames',{'dataset','method','max_value_difference_Vs'}), ...
  fullfile(out,'lookup_consistency.csv'));
 save(fullfile(out,'comparison.mat'),'study','labels','metrics','derivatives','cost','checks','parameters','-v7');
+
+end
 
 function L=local_slopes(x,y,q,count)
 sc=max(x)-min(x);z=x./sc;L=nan(size(q,1),2,3);

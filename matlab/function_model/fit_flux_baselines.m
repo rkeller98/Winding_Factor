@@ -1,5 +1,9 @@
+function fit_flux_baselines
 %% Fit the original LUT and k methods using the same final training rows.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
 a=load(fullfile(out,'data.mat'));data=a.data;models=cell(numel(data),8);information=cell(numel(data),1);
 for s=1:numel(data)
  d=data{s};use=d.train|d.validation;x=d.x(use,:);y=d.y(use,:);sc=max(abs(x));
@@ -10,6 +14,8 @@ for s=1:numel(data)
  end
  fprintf('%s baselines fitted\n',d.name);
  save(fullfile(out,'baseline_models.mat'),'models','information','-v7');
+end
+
 end
 
 function m=wrap(map,d,use)

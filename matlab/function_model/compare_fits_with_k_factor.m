@@ -1,5 +1,10 @@
+function compare_fits_with_k_factor
 %% Same physical test points: differences from the trained full LUT, not measurement errors.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
+require_analysis_file(fullfile(out,'comparison.mat'),'compare_flux_fits');
 a=load(fullfile(out,'data.mat'));data=a.data;
 a=load(fullfile(out,'comparison.mat'));study=a.study;differences=[];
 for s=1:numel(data)
@@ -15,7 +20,17 @@ writetable(array2table(differences,'VariableNames',{'dataset','method','rmse_d_m
 % Existing all-data LUTs used the held-out groups: comparison only, not validation.
 file=fullfile(root,'results','flux_map_reduction.mat');existing=[];
 if ~isfile(file)
- unzip(fullfile(root,'winding_factor_study','research_results.zip'),fullfile(root,'results'));
+ archive=fullfile(root,'winding_factor_study','research_results.zip');
+ require_analysis_file(archive,sprintf( ...
+     'Restore the results archive, or addpath(''%s''); prepare_reduction_data; analyze_flux_map_reduction. No k-factor starter, audit or plots are required.', ...
+     fullfile(root,'matlab','k_factor')));
+ % Import only the required reference; preserve other existing result files.
+ temporary=tempname;mkdir(temporary);
+ remove_temporary=onCleanup(@() rmdir(temporary,'s'));
+ unzip(archive,temporary);
+ reference=fullfile(temporary,'flux_map_reduction.mat');
+ require_analysis_file(reference,'Restore research_results.zip containing flux_map_reduction.mat, or run analyze_flux_map_reduction after prepare_reduction_data.');
+ copyfile(reference,file);
 end
 old=load(file,'study');
 for s=1:3
@@ -30,3 +45,5 @@ end
 writetable(array2table(existing,'VariableNames',{'dataset','method','rmse_d_mVs', ...
  'rmse_q_mVs','joint_rmse_mVs','max_abs_mVs','points'}),fullfile(out,'existing_LUT_differences.csv'));
 save(fullfile(out,'k_comparison.mat'),'differences','existing','-v7');
+
+end

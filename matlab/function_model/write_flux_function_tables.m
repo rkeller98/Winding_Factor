@@ -1,8 +1,18 @@
 function write_flux_function_tables
-root=fileparts(mfilename('fullpath'));paper=fullfile(root,'function_model_study');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+paper=fullfile(root,'function_model_study');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
+require_analysis_file(fullfile(out,'comparison.mat'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'metrics.csv'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'model_sizes.csv'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'runtime.csv'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'derivatives.csv'),'compare_flux_fits');
+require_analysis_file(fullfile(out,'differences_from_LUT.csv'),'compare_fits_with_k_factor');
 a=load(fullfile(root,'results','flux_fits','data.mat'));data=a.data;
 a=load(fullfile(root,'results','flux_fits','comparison.mat'));study=a.study;labels=a.labels;
-out=fullfile(fileparts(paper),'results','flux_fits');M=readtable(fullfile(out,'metrics.csv'));
+M=readtable(fullfile(out,'metrics.csv'));
 S=readtable(fullfile(out,'model_sizes.csv'));C=readtable(fullfile(out,'runtime.csv'));
 L=readtable(fullfile(out,'derivatives.csv'));D=readtable(fullfile(out,'differences_from_LUT.csv'));
 f=fopen(fullfile(paper,'results.tex'),'w');

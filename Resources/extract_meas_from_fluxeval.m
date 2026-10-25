@@ -1,6 +1,6 @@
 function [outputFile, data] = extract_meas_from_fluxeval(fluxEvalPath, outputFile)
-% Alle Meas-Felder als MAT: gruppiertes Total und Cells {Erregerstrom,Drehzahl}.
-% Beispiel: f = extract_meas_from_fluxeval('C:\Pfad\FluxEval.mat'); data = load(f);
+% All Meas fields as MAT: grouped Total and cells {excitation current,speed}.
+% Example: f = extract_meas_from_fluxeval('C:\path\FluxEval.mat'); data = load(f);
 input = load(fluxEvalPath, 'Total');
 rpm_fields = fieldnames(input.Total);
 rpm_fields = rpm_fields(endsWith(rpm_fields, '_rpm'));

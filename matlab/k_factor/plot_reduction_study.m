@@ -1,11 +1,20 @@
+function plot_reduction_study
 %% Regenerate independent surface comparisons, every group figure and paper tables.
-root=fileparts(mfilename('fullpath')); addpath(root); out=fullfile(root,'results');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('k_factor');
+out=fullfile(root,'results');
 paper=fullfile(root,'winding_factor_study'); figs=fullfile(paper,'figures'); atlas=fullfile(figs,'atlas');
 if ~isfolder(atlas),mkdir(atlas);end
+require_analysis_file(fullfile(out,'reduction_data.mat'),'prepare_reduction_data');
+require_analysis_file(fullfile(out,'flux_map_reduction.mat'),'analyze_flux_map_reduction');
+require_analysis_file(fullfile(out,'winding_validation.mat'),'validate_winding_factor');
 v=load(fullfile(out,'reduction_data.mat')); data=v.data;
 v=load(fullfile(out,'flux_map_reduction.mat')); study=v.study; labels=v.labels;
 v=load(fullfile(out,'winding_validation.mat')); diagnostics=v.study;
-set(groot,'defaultFigureVisible','off','defaultAxesFontSize',14,'defaultTextFontSize',14, ...
+graphics_properties={'defaultAxesFontSize','defaultTextFontSize','defaultTextInterpreter','defaultAxesTickLabelInterpreter'};
+graphics_defaults=get(groot,graphics_properties);
+restore_graphics=onCleanup(@() set(groot,graphics_properties,graphics_defaults));
+set(groot,'defaultAxesFontSize',14,'defaultTextFontSize',14, ...
     'defaultTextInterpreter','tex','defaultAxesTickLabelInterpreter','tex');
 blue=[.05 .32 .72]; orange=[.94 .42 .08];
 diverge=[linspace(.1,1,128)',linspace(.3,1,128)',ones(128,1); ...
@@ -25,7 +34,7 @@ for s=1:3
     tri{g}=physical_triangles(a(:,1:2),r.current_scale(1:2));
  end
  % Early view of original and transformed independent surfaces.
- fig=figure('Position',[20 20 1250 780]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact'); colors=turbo(ng);
+ fig=figure('Visible','on','Position',[20 20 1250 780]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact'); colors=turbo(ng);
  for c=1:2
   for transformed=0:1
    ax=nexttile; hold(ax,'on');
@@ -49,7 +58,7 @@ for s=1:3
  title(t,sprintf('Set%d: separate surfaces, A k = %.3f A/A; colour denotes excitation group',s,r.p{1}));
  colormap(fig,colors);clim([.5 ng+.5]);cb=colorbar;cb.Layout.Tile='east';
  cb.Ticks=1:ng;cb.TickLabels=string(d.excitation);cb.Label.String='Nominal excitation in A';
- exportgraphics(fig,fullfile(figs,sprintf('geometry_set%d.png',s)),'Resolution',150);close(fig);
+ exportgraphics(fig,fullfile(figs,sprintf('geometry_set%d.png',s)),'Resolution',150);
  % One physical lower-slice query grid for ALL transformations in each pair.
  pairerror=cell(ng-1,1); pairmask=cell(ng-1,1);
  for g=1:ng-1
@@ -79,7 +88,7 @@ for s=1:3
     'rmse_d_mVs','rmse_q_mVs','joint_rms_mVs','max_abs_mVs','points','eligible'}), ...
     fullfile(out,'surface_pairs.csv'));
  gp=ceil((ng-1)/2); lim=max(abs(pairerror{gp}),[],'all','omitnan'); lim=max(lim,1);
- fig=figure('Position',[20 20 1180 760]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
+ fig=figure('Visible','on','Position',[20 20 1180 760]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
  for c=1:2
   for m=[1 7]
    nexttile; q=originals{gp}; z=reduction_coordinates(q,m,r.p{m},r.current_scale);
@@ -92,21 +101,21 @@ for s=1:3
  end
  colormap(fig,diverge);title(t,sprintf('Set%d: independently shifted surfaces, %g minus %g A', ...
     s,d.excitation(gp+1),d.excitation(gp)));
- exportgraphics(fig,fullfile(figs,sprintf('surface_set%d.png',s)),'Resolution',150);close(fig);
+ exportgraphics(fig,fullfile(figs,sprintf('surface_set%d.png',s)),'Resolution',150);
  % Derivative maps and contour estimator evidence.
  a=diagnostics{s}; l=a.slopes{2}; g=ceil(ng/2); ix=d.groups==g;
- fig=figure('Position',[20 20 1240 660]);theme(fig,'light'); t=tiledlayout(2,3,'TileSpacing','compact');
+ fig=figure('Visible','on','Position',[20 20 1240 660]);theme(fig,'light'); t=tiledlayout(2,3,'TileSpacing','compact');
  values={l.ratio(:,1),l.ratio(:,2),l.klocal,l.eta,1000*vecnorm(l.residual,2,2),1000*l.L(:,2,1)};
  titles={'L_{de}/L_{dd} in A/A','L_{qe}/L_{qd} in A/A','Local LS k in A/A', ...
     '\eta (dimensionless)','Derivative residual norm in mH','L_{qd} in mH'};
  for j=1:6,nexttile;scatter(x(ix,1),x(ix,2),14,values{j}(ix),'filled');title(titles{j});xlabel('i_d in A');ylabel('i_q in A');colorbar;end
  title(t,sprintf('Set%d, nominal excitation %g A; 80-neighbour local affine estimates',s,d.excitation(g)));
- exportgraphics(fig,fullfile(figs,sprintf('derivative_set%d.png',s)),'Resolution',150);close(fig);
+ exportgraphics(fig,fullfile(figs,sprintf('derivative_set%d.png',s)),'Resolution',150);
  ce=a.contour.centroid_error; drift=a.contour.iq_drift;
  contourrows=[contourrows;s,a.k,1000*sqrt(mean(ce.^2,'all','omitnan')), ...
     median(abs(drift),'all','omitnan'),sum(isfinite(a.contour.ratios),'all')];
  % RMSE over excitation, same physical support across A--H.
- fig=figure('Position',[20 20 1240 780]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
+ fig=figure('Visible','on','Position',[20 20 1240 780]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
  for mode=1:2
   for c=1:2
    nexttile; hold on;
@@ -119,7 +128,7 @@ for s=1:3
   end
  end
  title(t,sprintf('Set%d: identical supported physical points for all methods',s));
- exportgraphics(fig,fullfile(figs,sprintf('rmse_set%d.png',s)),'Resolution',150);close(fig);
+ exportgraphics(fig,fullfile(figs,sprintf('rmse_set%d.png',s)),'Resolution',150);
  % Complete atlas: one page for each method and excitation group.
  lim=max(abs(1000*(r.reconstruction-y)),[],'all','omitnan'); lim=max(lim,1);
  for g=1:ng
@@ -128,7 +137,7 @@ for s=1:3
   for m=1:8
    pred=nan(size(orig));pred(supported,:)=reduction_lookup(r.maps{m},query(supported,:));
    e=1000*(pred-orig);
-   fig=figure('Position',[20 20 1180 760]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
+   fig=figure('Visible','on','Position',[20 20 1180 760]);theme(fig,'light'); t=tiledlayout(2,2,'TileSpacing','compact');
    for c=1:2
     nexttile;hold on;
     drawx=D;drawy=Q;if c==1,drawx=Q;drawy=D;end
@@ -143,7 +152,7 @@ for s=1:3
    end
    colormap(fig,diverge);title(t,sprintf('Set%d | %s | nominal excitation %g A',s,labels{m},d.excitation(g)));
    name=sprintf('set%d_group%02d_%s.png',s,g,labels{m}(1));
-   exportgraphics(fig,fullfile(atlas,name),'Resolution',105);close(fig);
+   exportgraphics(fig,fullfile(atlas,name),'Resolution',105);
    if g==ceil(ng/2) && m==3
     copyfile(fullfile(atlas,name),fullfile(figs,sprintf('reconstruction_set%d.png',s)));
    end
@@ -189,7 +198,7 @@ writetable(array2table(boundaryrows,'VariableNames',{'set','method','ie_nominal_
 save(fullfile(out,'independent_surface_comparison.mat'),'pairrows','contourrows','foldrows','jacrows','boundaryrows');
 save(fullfile(out,'flux_map_reduction.mat'),'study','-append');
 % Overall errors and error--coverage curves, no arbitrary acceptance threshold.
-fig=figure('Position',[20 20 1320 680]);theme(fig,'light');t=tiledlayout(2,3,'TileSpacing','compact');
+fig=figure('Visible','on','Position',[20 20 1320 680]);theme(fig,'light');t=tiledlayout(2,3,'TileSpacing','compact');
 for s=1:3
  nexttile; r=study{s}; a=r.metrics(r.metrics(:,2)==2,:);bar(a(:,3),a(:,6));
  xticks(1:8);xticklabels(cellstr(('A':'H')'));ylabel('Joint prediction RMSE in mVs');title(sprintf('Set%d',s));grid on;
@@ -202,8 +211,10 @@ for s=1:3
  end
  xlabel('Vector error in mVs');ylabel('Fraction of common points');grid on;legend('Location','best','NumColumns',4);
 end
-exportgraphics(fig,fullfile(figs,'overview.png'),'Resolution',150);close(fig);
+exportgraphics(fig,fullfile(figs,'overview.png'),'Resolution',150);
 write_tables(paper,data,study,diagnostics,pairrows,contourrows);
+
+end
 
 function value=surface_values(x,y,q,sc)
 validq=all(isfinite(q),2); value=nan(size(q,1),size(y,2));

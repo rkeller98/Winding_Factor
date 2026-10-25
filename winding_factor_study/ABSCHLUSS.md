@@ -1,64 +1,65 @@
-# Ergebnis und Ausführung
+# Results and execution
 
-Die Untersuchung bleibt auf Englisch. MATLAB-Code, Rohdatenaufbereitung,
-Rückrekonstruktion und Vorhersageprüfung wurden für Set1, Set2 und Set3 ausgeführt.
-Die produktive Auswertungssoftware und sämtliche Rohdateien wurden unverändert gelassen.
+The study is written in English. MATLAB code, raw-data preparation,
+reconstruction, and prediction evaluation were run for Set1, Set2, and Set3.
+The production evaluation software and all raw files were left unchanged.
 
-Set1 enthält 7.476, Set2 8.092 und die neu erzeugte Set3-Auswertung 9.022 Betriebspunkte.
-Set3 ist eine andere Maschinenkonfiguration (vier statt drei Polpaare). Die nominalen
-Erregerströme gruppieren die Daten; gerechnet wird mit den gemessenen Strömen.
+Set1 contains 7,476 operating points, Set2 8,092, and the newly generated Set3
+evaluation 9,022. Set3 uses a different machine configuration (four rather than
+three pole pairs). Nominal excitation currents define the groups; calculations
+use measured currents.
 
-Gemeinsamer RMSE beider Flusskomponenten bei vollständig ausgelassenen inneren
-Erregerstromgruppen, in mVs:
+Joint RMSE of both flux components for completely omitted interior excitation
+current groups, in mVs:
 
-| Set | A: bisherig | C: konstanter gemeinsamer Fit | E: q-/erregerabhängig | F: zwei konstante Achsenfaktoren | G: drei Ströme | H: Dreistromreferenz |
+| Set | A: existing | C: joint constant fit | E: q-/excitation-dependent | F: two constant axis factors | G: three currents | H: three-current reference |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 5,998 | 5,518 | 5,453 | 5,490 | 5,513 | 1,787 |
-| 2 | 6,309 | 5,736 | 5,470 | 5,653 | 5,443 | 1,780 |
-| 3 | 6,970 | 6,996 | 6,839 | 6,529 | 6,425 | 1,480 |
+| 1 | 5.998 | 5.518 | 5.453 | 5.490 | 5.513 | 1.787 |
+| 2 | 6.309 | 5.736 | 5.470 | 5.653 | 5.443 | 1.780 |
+| 3 | 6.970 | 6.996 | 6.839 | 6.529 | 6.425 | 1.480 |
 
-Jede Zeile verwendet für alle acht Methoden dieselben unterstützten physikalischen
-Prüfpunkte. Die Abdeckung beträgt 89,15 %, 89,03 % beziehungsweise 90,75 % der
-inneren Gruppen. Randgruppen stehen separat in `results/boundary_groups.csv`.
-Das gemeinsame Maß ist die Wurzel aus dem Mittel der quadrierten Fehler beider
-Komponenten; es ist kein arithmetischer Mittelwert einzelner Gruppen-RMSEs.
+Each row uses the same supported physical query points for all eight methods.
+Coverage is 89.15%, 89.03%, and 90.75% of the interior groups, respectively.
+Boundary groups are reported separately in `results/boundary_groups.csv`.
+The joint metric is the square root of the mean squared error across both
+components; it is not an arithmetic mean of individual group RMSEs.
 
-Empfehlung: Wenn eine Reduktion auf zwei Kennfeldachsen erforderlich ist und beide
-Achsen verschoben werden dürfen, ist F der überzeugendste einfache Kompromiss.
-Zwei konstante Parameter verbessern den gemeinsamen Fehler gegenüber A in allen
-drei Datensätzen um etwa 8,5 %, 10,4 % und 6,3 %. E ist für Set1/2 eine sinnvolle
-Alternative bei unveränderter physikalischer q-Achse. G gewinnt nicht durchgängig;
-sein geringer Zusatzgewinn gegenüber einfacheren Varianten rechtfertigt die
-zusätzlichen Parameter und Invertierbarkeitsbedingungen nicht allgemein.
-Bei vorrangigem Genauigkeitsziel ist H vorzuziehen: etwa 21-mal so viele
-Kennfeldknoten, dafür deutlich kleinere Vorhersagefehler.
+Recommendation: If reduction to two map axes is required and both axes may be
+shifted, F is the strongest simple compromise. Its two constant parameters
+improve joint error over A by approximately 8.5%, 10.4%, and 6.3% across the three
+datasets. E is a useful alternative for Set1/2 when the physical q-axis must
+remain unchanged. G does not consistently outperform simpler variants; its small
+additional improvement does not generally justify the extra parameters and
+invertibility conditions. If accuracy takes priority, H is preferable:
+approximately 21 times as many map nodes, but substantially smaller prediction errors.
 
-Die exakte konstante d-Reduktion setzt gleichzeitig `Lde = k Ldd` und
-`Lqe = k Lqd` voraus. Die Ableitungsdiagnostik lässt Residuen zurück, und die
-verschobenen Originalflächen verlangen teilweise unterschiedliche Flüsse an
-derselben reduzierten Position. Daraus folgt keine isolierte physikalische
-Fehleruntergrenze: Messung, Temperatur, Vorverarbeitung und Interpolation bleiben
-mit enthalten. Ein wechselndes iq erklärt die Ergebnisse nicht allein.
+Exact constant d-reduction requires both `Lde = k Ldd` and `Lqe = k Lqd`.
+The derivative diagnostics retain residuals, and the shifted original surfaces
+sometimes require different flux values at the same reduced position. This does
+not establish an isolated physical error floor: measurement, temperature,
+preprocessing, and interpolation remain included. Varying iq alone does not
+explain the results.
 
-Grenzen: Es gibt keinen anwendungsseitig begründeten Akzeptanzgrenzwert und keine
-unabhängige Absolutkalibrierung der Flüsse. Set3 fehlen unter anderem
-Phasen-/RMS-Metadaten; sein Rotor-Temperaturkanal ist nicht als kalibrierter Verlauf
-verwendbar. Vier G-Anpassungen erreichten die endliche Suchgrenze; ein globales
-Optimum wird nicht behauptet. Es wurde keine Extrapolation der Interpolanten
-zugelassen. Unterstützte reduzierte Abfragen einer Randgruppe sind trotzdem von
-einer Interpolation innerhalb des gemessenen Dreistrombereichs zu unterscheiden.
+Limitations: There is no application-based acceptance threshold or independent
+absolute flux calibration. Set3 lacks phase/RMS metadata, among other channels;
+its rotor-temperature channel cannot be used as a calibrated temperature trace.
+Four G fits reached the finite search budget; no global optimum is claimed.
+Extrapolation of the interpolants was disabled. Supported reduced queries for a
+boundary group must still be distinguished from interpolation within the
+measured three-current domain.
 
-Die schlanken analytischen Kontrollen liefern die erwarteten Ergebnisse:
-konstante und integrierte variable Reduktion stimmen bis auf Rundung überein;
-das falsche Produkt aus Erregerstrom und lokalem Faktor weicht ab; der bewusst
-inkompatible Fall hat unterschiedliche q-Flüsse bei gleichen reduzierten Koordinaten.
-Ein Testgerüst oder Assertions wurden nicht angelegt.
+The small analytic controls produce the expected results: constant and integrated
+variable reduction agree up to rounding; the incorrect product of excitation
+current and local factor differs; the deliberately incompatible case has
+different q-fluxes at identical reduced coordinates. No test harness or
+assertions were added.
 
-Exakte serielle Wiederholung in PowerShell aus dem Projektordner:
+Serial reproduction in PowerShell from the project directory, using the current
+`matlab/k_factor/` layout:
 
 ```powershell
 Set-Location C:/Git/Winding_Factor
-matlab -batch "restoredefaultpath; addpath(pwd); prepare_reduction_data; analyze_winding_factors; validate_winding_factor; audit_reduction_sources; analyze_flux_map_reduction; plot_reduction_study"
+matlab -batch "restoredefaultpath; addpath('C:/Git/Winding_Factor/matlab/k_factor'); run_k_factor_analysis"
 Set-Location C:/Git/Winding_Factor/winding_factor_study
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
@@ -66,19 +67,18 @@ pdflatex -interaction=nonstopmode -halt-on-error atlas.tex
 pdflatex -interaction=nonstopmode -halt-on-error atlas.tex
 ```
 
-Im durchgeführten Lauf wurden die drei unabhängigen Datensätze parallel in eigenen
-MATLAB-Prozessen mit `maxNumCompThreads(2)` und `analyze_flux_map_reduction(1)`,
-`(2)` beziehungsweise `(3)` berechnet. Die korrigierten Läufe benötigten ungefähr
-1.000, 1.226 und 943 Sekunden. Die Logs liegen in `results/reduction_set*.log`.
-MATLAB-Version: R2025b. Externe Zitate und das Literaturverzeichnis wurden auf
-Wunsch aus dem Paper entfernt.
+In the reported run, the three independent datasets were processed concurrently
+in separate MATLAB processes with `maxNumCompThreads(2)` and
+`analyze_flux_map_reduction(1)`, `(2)`, and `(3)`, respectively. The corrected runs
+took approximately 1,000, 1,226, and 943 seconds. Logs are in
+`results/reduction_set*.log`. MATLAB version: R2025b. External citations and the
+bibliography were removed from the paper at the user's request.
 
-Die Datenherkunft, Detailausgaben und Zuordnung der Review-Anforderungen stehen
-in [RUN.md](RUN.md). Die vollständigen Einzelgruppen-Vergleiche stehen im Atlas;
-die numerischen MAT-/CSV-Dateien werden zusätzlich als Ergebnisarchiv übergeben.
-Die Achsenbeschriftungen verwenden „in A“ und „in mVs“. Die 3D-Ansichten von ψd
-haben vertauschte d-/q-Achsen; die Heatmaps behalten ihre bisherige Anordnung.
-Figure 1 verwendet offene Meshes, damit die einzelnen Erregerstromstufen sichtbar bleiben.
-Eine gemeinsame LaTeX-Vorlage erzeugt die Atlas-Seiten per Schleife aus drei
-Datensatzdefinitionen statt aus wiederholten Seitenblöcken.
-Die Arbeit bleibt auf `codex/flux-reduction-study`; keine Zusammenführung und kein Deployment.
+Data provenance, detailed outputs, and the mapping of review requirements are
+in [RUN.md](RUN.md). Complete individual-group comparisons are in the atlas;
+numerical MAT/CSV files are also supplied as a results archive.
+Axis labels use "in A" and "in mVs". The 3D views of ψd exchange the displayed
+d/q axes; heatmaps retain their existing arrangement. Figure 1 uses open meshes
+to keep individual excitation levels visible. A shared LaTeX template generates
+atlas pages by looping over three dataset definitions instead of repeating page blocks.
+The work remains on `codex/flux-reduction-study`; no merge or deployment was performed.

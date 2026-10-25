@@ -1,9 +1,14 @@
+function audit_reduction_sources
 %% Compare historical exports without replacing the new common preprocessing.
-root=fileparts(mfilename('fullpath')); out=fullfile(root,'results');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('k_factor');
+out=fullfile(root,'results');
+require_analysis_file(fullfile(out,'reduction_data.mat'),'prepare_reduction_data');
 v=load(fullfile(out,'reduction_data.mat'));data=v.data; rows=[]; convention=[];
 files={'Matlab_200_201_202_FluxEval.mat','eval_flux_eesm_excitation_0A_to_40A.mat'};
 for s=1:2
  source=fullfile(root,'Resources/DataSets',sprintf('Set%d',s),'FluxEval',files{s});
+ require_analysis_file(source,'Restore the original full historical FluxEval file (Total, LUT and Calc); the compact Meas-only export is insufficient for the coordinate audit.');
  old=load(source,'Total','LUT'); blocks=old.Total.pos_3000_rpm;names=fieldnames(blocks);
  names=names(contains(names,'_A')); d=data{s};
  for j=1:numel(names)
@@ -43,3 +48,5 @@ end
 writetable(array2table(meta,'VariableNames',{'set','machine_id','phase_selector', ...
  'current_sensor_delay_s','angle_sensor_delay_s','median_peak_to_rms_ratio', ...
  'rpm_min','rpm_max','stator_temp_min_C','rotor_temp_min_C','stator_temp_max_C','rotor_temp_max_C'}),fullfile(out,'machine_metadata.csv'));
+
+end

@@ -1,7 +1,10 @@
 function study=analyze_flux_map_reduction(dataset_selection)
 % A--H: controlled reconstruction and nested whole-excitation-group prediction.
 if nargin==0,dataset_selection=1:3;end
-root=fileparts(mfilename('fullpath')); addpath(root); out=fullfile(root,'results');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('k_factor');
+out=fullfile(root,'results');
+require_analysis_file(fullfile(out,'reduction_data.mat'),'prepare_reduction_data');
 loaded=load(fullfile(out,'reduction_data.mat'),'data'); data=loaded.data;
 labels={'A contour','B fixed-q d fit','C joint constant','D excitation shift', ...
     'E q/excitation shift','F two-axis constant','G three-current shift','H full three-current'};

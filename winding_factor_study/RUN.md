@@ -1,6 +1,14 @@
 # Research execution, 24 October 2026
 
-Scope: stator flux linkages only. English manuscript, German handover.
+Current layout: study entry points are in `matlab/k_factor/`, with shared
+preparation and numerical helpers in `matlab/common/`. In a fresh session use
+`addpath('/absolute/path/to/Winding_Factor/matlab/k_factor')` and call `run_k_factor_analysis`. For individual commands below, also add
+`/absolute/path/to/Winding_Factor/matlab/common` for shared data preparation. For both complete studies, add the project root and call
+`run_matlab_analysis`. Input/output locations are unchanged; figures now stay open.
+The full historical Set1/2 FluxEval files required by the source audit are local
+inputs, not included in the compact exports; see the [project README](../README.md).
+
+Scope: stator flux linkages only. English manuscript, English handover.
 Work is on `codex/flux-reduction-study`; production software and raw files are read-only.
 The pre-existing manuscript/scripts were copied to `%TEMP%/winding_factor_before_20261024`
 and preserved in baseline commit `fa08911`.
@@ -22,7 +30,7 @@ all pages were rendered and visually surveyed, with enlarged checks of the chang
 No unresolved references or overfull boxes remain.
 
 ```powershell
-matlab -batch "restoredefaultpath; addpath(pwd); prepare_reduction_data; analyze_winding_factors; validate_winding_factor; audit_reduction_sources; analyze_flux_map_reduction; plot_reduction_study"
+matlab -batch "restoredefaultpath; addpath('C:/Git/Winding_Factor/matlab/k_factor'); run_k_factor_analysis"
 ```
 
 Run LaTeX from `winding_factor_study` to resolve relative inputs; the exact final build

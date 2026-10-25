@@ -1,10 +1,10 @@
 # MeasEval → ParamGUI → VICE
 
-Die ParamGUI R3310 benennt die folgenden Felder um. Quelle ist bevorzugt
-`Inv_Param_GUI`, ersatzweise `Inv_Param` aus der vollständigen FluxEval-Datei.
-Ziele liegen unter `Parameter`. Die GUI selbst bleibt lokal im Gitignore.
+ParamGUI R3310 renames the following fields. The preferred source is
+`Inv_Param_GUI`, falling back to `Inv_Param` from the complete FluxEval file.
+Destinations are under `Parameter`. The GUI itself stays local and is ignored by Git.
 
-| Quelle | Ziel |
+| Source | Destination |
 | --- | --- |
 | `CtrlMaps.Psi_d` | `MACHINE.Ctrl_Map.Psi_d_FIT_param_mat_Vs` |
 | `CtrlMaps.Psi_q` | `MACHINE.Ctrl_Map.Psi_q_FIT_param_mat_Vs` |
@@ -23,38 +23,40 @@ Ziele liegen unter `Parameter`. Die GUI selbst bleibt lokal im Gitignore.
 | `TrqMaps.I_exc_opti` | `MACHINE.Trq_Map.I_Rot_Opti_param_mat_A` |
 | `Limits.Trq_Lim_max` | `MACHINE.Limit_Trq.torque_lim_max_mat_Nm` |
 | `Limits.Trq_Lim_min` | `MACHINE.Limit_Trq.torque_lim_min_mat_Nm` |
-| `PW.Id_DCI`, `Iq_DCI`, `Id_HFFI`, `Iq_HFFI`, `HFFI_ampl_d`, `HFFI_ampl_q` | gleichnamige Felder unter `PW` |
+| `PW.Id_DCI`, `Iq_DCI`, `Id_HFFI`, `Iq_HFFI`, `HFFI_ampl_d`, `HFFI_ampl_q` | Fields with the same names under `PW` |
 
-Die Drehmomentbegrenzungen werden zusätzlich unter
-`MACHINE.Torque_limitation_*` abgelegt. `Trq_breakpoints` ist im vorhandenen
-MeasEval-Export auf −1 bis 1 normiert, trotz des historischen Zielnamens `_Nm`.
 
-Maps4D wird separat aus `Inv_Param.Maps4D` kopiert:
+Torque limits are additionally stored under `MACHINE.Torque_limitation_*`.
+In the existing MeasEval export, `Trq_breakpoints` is normalized to −1 through 1,
+despite the historical destination suffix `_Nm`.
 
-| Quelle | Ziel |
+Maps4D is copied separately from `Inv_Param.Maps4D`:
+
+| Source | Destination |
 | --- | --- |
 | `CtrlMaps` | `MACHINE.Maps4D.Ctrl_Map` |
 | `Interpolated.TrqMaps` | `MACHINE.Maps4D.Trq_Map` |
 | `Interpolated.Limits.Trq_Lim_max/min` | `MACHINE.Maps4D.Limit_Trq.torque_lim_max/min_mat_Nm` |
 | `Interpolated.PW` | `PW.Maps4D` |
 
-Für `MACHINE_GUI.Maps4D` verwendet der Save-Helfer die GUI-Variante.
 
-Für den Wicklungsfaktor relevant:
+For `MACHINE_GUI.Maps4D`, the save helper uses the GUI variant.
 
-- Älterer EESM-Pfad: `Id* = Id + k·Iexc`, `k = EESM_winding_ratio`.
-- MATLAB-Kennfelder: Zeilen `Iq`, Spalten `Id*`. Der ParamGUI-Import kopiert sie.
-  Erst das VICE-Python-Skript transponiert die sechs Fluss-/Induktivitätstabellen.
-- Maps4D verwendet physikalische d/q-Achsen je Erregerstrom-Slice. Die explizite
-  Iexc-Achse fehlt im untersuchten `Inv_Param.Maps4D.CtrlMaps`-Export;
-  die ursprüngliche Slice-Reihenfolge steht im LUT.
-- Beim GUI-Save werden NaN gefüllt bzw. durch Null mit Masken ersetzt.
-  Dort wird außerdem `L_dq` aus `L_dd` und `L_qd` aus `L_qq` gebildet.
-- Für `CtrlMaps.L_exc` fehlt im untersuchten Import eine direkte Zuweisung
-  auf `MACHINE.Ctrl_Map.L_Rot_param_mat_H`.
-- Der separate VICE-Startup-Helfer spiegelt die Id-Achse. Das gehört zu einem
-  anderen Pfad als dem ParamGUI-Import.
+Relevant to the winding factor:
 
-Grundlage: lokale ParamGUI R3310, `Functions/MAPS4D_Save.m` und
-VICE `003_004_000_002`, Python-Parametrierskript. Keine Veröffentlichungsfreigabe
-für das vollständige GUI-Paket im Bestand gefunden; deshalb bleibt es lokal.
+- Legacy EESM path: `Id* = Id + k·Iexc`, `k = EESM_winding_ratio`.
+- MATLAB maps: rows are `Iq`, columns are `Id*`. ParamGUI imports copy them.
+  Only the VICE Python script transposes the six flux/inductance tables.
+- Maps4D uses physical d/q axes for each excitation-current slice. The explicit
+  Iexc axis is missing from the inspected `Inv_Param.Maps4D.CtrlMaps` export;
+  the original slice order is stored in the LUT.
+- GUI saving fills NaNs or replaces them with zeros and masks. It also derives
+  `L_dq` from `L_dd` and `L_qd` from `L_qq`.
+- The inspected import has no direct assignment from `CtrlMaps.L_exc` to
+  `MACHINE.Ctrl_Map.L_Rot_param_mat_H`.
+- The separate VICE startup helper mirrors the Id axis. This is a different
+  path from the ParamGUI import.
+
+Sources: local ParamGUI R3310, `Functions/MAPS4D_Save.m`, and the Python
+parameterization script from VICE `003_004_000_002`. No publication permission
+for the complete GUI package was found in the available material, so it remains local.

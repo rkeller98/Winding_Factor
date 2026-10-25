@@ -1,7 +1,8 @@
+function prepare_reduction_data
 %% Rebuild all three research datasets from acquisition channels.
 % Same arithmetic averaging and stationary flux formula for every dataset.
 % No new outlier decisions, fitted surfaces or productive GUI changes.
-root = fileparts(mfilename('fullpath'));
+root=setup_matlab_paths;
 out = fullfile(root,'results'); if ~isfolder(out), mkdir(out); end
 rawfiles = {{'Matlab_200.mat','Matlab_201.mat','Matlab_202.mat'}, ...
     {'flux_eesm_excitation_0A.mat','flux_eesm_excitation_2A_to_40A.mat'}, ...
@@ -19,6 +20,7 @@ for s=1:3
     values=[]; repeats=[]; file_id=[]; point_id=[]; sample_std=[]; omitted=0;
     for f=1:numel(rawfiles{s})
         file=fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'raw',rawfiles{s}{f});
+        require_analysis_file(file,'Restore the original acquisition MAT file under Resources/DataSets/Set*/raw; compact exports cannot replace acquisition channels.');
         loaded=load(file); names=fieldnames(loaded); raw=loaded.(names{1});
         names=erase({raw.Y.Name},' ');
         ind=raw.Y(strcmp(names,'PE_Index_meas')).Data(:);
@@ -86,3 +88,5 @@ audit=array2table(inventory,'VariableNames',{'set','ie_nominal_A','points','samp
     'stator_temp_max_C','rotor_temp_max_C'});
 writetable(audit,fullfile(out,'data_inventory.csv'));
 save(fullfile(out,'reduction_data.mat'),'data','audit','channels','rawfiles','-v7');
+
+end

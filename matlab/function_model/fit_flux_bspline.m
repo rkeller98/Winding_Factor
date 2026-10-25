@@ -1,6 +1,9 @@
 function fit_flux_bspline
 % Cubic tensor models; sparse weighted QR with a coefficient ridge.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
 a=load(fullfile(out,'data.mat'));data=a.data;models=cell(size(data));candidates=[];
 sizes=[5 5 4;7 7 5;9 9 6];lambdas=[1e-7 1e-4];
 for s=1:numel(data)

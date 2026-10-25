@@ -1,5 +1,5 @@
 function extract_measurements(datasetRoot)
-% Alle lokalen Sets erneut extrahieren. Originale liegen in raw/ und FluxEval/.
+% Extract all local sets again. Originals are in raw/ and FluxEval/.
 if nargin == 0
     datasetRoot = fileparts(mfilename('fullpath'));
 end
@@ -15,12 +15,12 @@ for k = 1:numel(sets)
         if ~exist(folder, 'dir'), mkdir(folder); end
         [~, name] = fileparts(source);
         extract_raw(source, fullfile(folder, [name '_measurements.mat']));
-        fprintf('Rohdaten: %s\n', source);
+        fprintf('Raw data: %s\n', source);
     end
     files = dir(fullfile(setRoot, 'FluxEval', '*.mat'));
     for j = 1:numel(files)
         extract_meas_from_fluxeval(fullfile(files(j).folder, files(j).name));
-        fprintf('Auswertung: %s\n', files(j).name);
+        fprintf('Evaluation: %s\n', files(j).name);
     end
 end
 end

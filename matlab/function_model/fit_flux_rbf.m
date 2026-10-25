@@ -1,6 +1,9 @@
 function fit_flux_rbf
 % Configurable compact Gaussian models, fixed bases and linear coefficients.
-root=fileparts(mfilename('fullpath'));out=fullfile(root,'results','flux_fits');
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
+root=setup_matlab_paths('function_model');
+out=fullfile(root,'results','flux_fits');
+require_analysis_file(fullfile(out,'data.mat'),'prepare_flux_fit_data');
 a=load(fullfile(out,'data.mat'));data=a.data;models=cell(size(data));candidates=[];
 center_counts=[32 64 128];width_factors=[.75 1.5 3];lambdas=[1e-7 1e-4];
 for s=1:numel(data)
