@@ -10,6 +10,10 @@ Research comparison of seven k-based two-coordinate models and a complete
 three-current reference, using Set1, Set2 and the freshly processed Set3.
 The paper and figure labels remain in English.
 
+The existing MeasEval Delaunay and edge-intersection implementations are included
+in [Resources/MeasEval](Resources/MeasEval/README.md), including `PointSet`,
+`SampledField` and the MATLAB geometry helpers from `modernization-baseline`.
+
 From this repository in MATLAB R2025b:
 
 ```matlab

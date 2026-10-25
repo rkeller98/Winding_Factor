@@ -2,6 +2,7 @@
 /Resources/*
 !/Resources/DataSets/
 !/Resources/Mapping/
+!/Resources/MeasEval/
 !/Resources/investigation/
 /Resources/investigation/*
 !/Resources/investigation/README.md
