@@ -15,6 +15,7 @@
 /Resources/DataSets/Set*/eval_flux_*.mat
 
 *.asv
+*.synctex.gz
 __pycache__/
 /results/
 /winding_factor_study/*.aux

@@ -26,6 +26,8 @@ sets can also run in separate MATLAB processes with `analyze_flux_map_reduction(
 respectively `(2)` and `(3)`; the last completed set collects the combined results.
 
 - Acquisition files: `Resources/DataSets/Set*/raw/`, unchanged.
+- Raw and extracted measurements are also available as compressed JSON (`.json.gz`); see the
+  [Python loading example](Resources/DataSets/README.md). The MAT files are retained.
 - Fresh grouped flux exports: each set's `extracted/evaluation/research_flux_measurements.mat`.
 - Numerical output, masks, fitted parameters, source audit and per-group CSVs: `results/`.
 - English paper: [main.pdf](winding_factor_study/main.pdf).
