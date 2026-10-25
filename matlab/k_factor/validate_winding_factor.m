@@ -14,11 +14,11 @@ for s = 1:numel(data)
     [x, y, groups] = reduction_inputs(data{s});
     [k, contour] = estimate_contour_factor(x, y, groups);
     slopes = cell(3, 1);
+    sc = max(x)-min(x);
+    z = x./sc;
 
     for h = 1:3
         count = neighbors(h);
-        sc = max(x)-min(x);
-        z = x./sc;
         L = nan(size(x, 1), 2, 3);
 
         for i = 1:size(x, 1)

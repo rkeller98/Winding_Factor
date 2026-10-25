@@ -57,6 +57,7 @@ for group_index = 1:group_count
         group_currents(:, 1:2), group_flux(:, 1), 'linear', 'none');
 
     % Interpolate all three measured currents at each contour crossing.
+    % The arithmetic intersection mean is not an arclength-weighted centroid.
     for level_index = 1:numel(levels)
         weights = (levels(level_index) - group_flux(start_rows, 1)) ...
             ./ (group_flux(end_rows, 1) - group_flux(start_rows, 1));

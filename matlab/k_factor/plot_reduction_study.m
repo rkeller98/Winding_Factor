@@ -30,6 +30,9 @@ set(groot,'defaultAxesFontSize', 14,'defaultTextFontSize', 14, ...
     'defaultTextInterpreter','tex','defaultAxesTickLabelInterpreter','tex');
 blue = [.05 .32 .72];
 orange = [.94 .42 .08];
+flux_components = {'d', 'q'};
+surface_names = {'Original', 'Transformed'};
+comparison_names = {'Reconstruction', 'Whole-group prediction'};
 diverge = [linspace(.1, 1, 128)', linspace(.3, 1, 128)', ones(128, 1); ...
     ones(128, 1), linspace(1, .2, 128)', linspace(1, .1, 128)'];
 atlaslist = fopen(fullfile(paper,'atlas_pages.tex'),'w');
@@ -106,8 +109,8 @@ for s = 1:numel(data)
                     xlabel('s in A');
                 end
             end
-            zlabel(sprintf('\\psi_%s in mVs', char('d'+13*(c-1))));
-            title(sprintf('%s, %s flux', choose(transformed,'Original','Transformed'), char('d'+13*(c-1))));
+            zlabel(sprintf('\\psi_%s in mVs', flux_components{c}));
+            title(sprintf('%s, %s flux', surface_names{transformed + 1}, flux_components{c}));
         end
     end
     title(t, sprintf('Set%d: separate surfaces, A k = %.3f A/A; colour denotes excitation group', s, r.p{1}));
@@ -129,14 +132,12 @@ for s = 1:numel(data)
         orig = originalgrid{g}(:, 1:2);
         error = nan(size(orig, 1), 2, 7);
         hi = groups == g+1;
-        reduced = cell(7, 1);
+        low = groups == g;
 
         for m = 1:7
             z = reduction_coordinates(x(hi, :), m, r.p{m}, r.current_scale);
             qz = reduction_coordinates(query, m, r.p{m}, r.current_scale);
-            reduced{m} = qz;
             [pred, diagnosis] = mesh_values(z, y(hi, :), qz, tri{g+1}, x(hi, 1:2));
-            low = groups == g;
             zlow = reduction_coordinates(x(low, :), m, r.p{m}, r.current_scale);
             [checklow, lowdiagnosis] = mesh_values(zlow, y(low, :), qz, tri{g}, x(low, 1:2));
             pred(~all(isfinite(checklow), 2), :) = nan;
@@ -190,7 +191,7 @@ for s = 1:numel(data)
             clim([-lim lim]);
             xlabel('s_d in A');
             ylabel('s_q in A');
-            title(sprintf('%s: \\Delta\\psi_%s in mVs', labels{m}(1), char('d'+13*(c-1))));
+            title(sprintf('%s: \\Delta\\psi_%s in mVs', labels{m}(1), flux_components{c}));
         end
     end
     colormap(fig, diverge);
@@ -241,8 +242,8 @@ for s = 1:numel(data)
             end
             grid on;
             xlabel('Nominal excitation in A');
-            ylabel(sprintf('RMSE \\psi_%s in mVs', char('d'+13*(c-1))));
-            title(choose(mode == 2,'Reconstruction','Whole-group prediction'));
+            ylabel(sprintf('RMSE \\psi_%s in mVs', flux_components{c}));
+            title(comparison_names{mode});
             legend('Location','best','NumColumns', 4);
         end
     end
@@ -289,7 +290,7 @@ for s = 1:numel(data)
                     xlabel('i_d in A');
                     ylabel('i_q in A');
                 end
-                zlabel(sprintf('\\psi_%s in mVs', char('d'+13*(c-1))));
+                zlabel(sprintf('\\psi_%s in mVs', flux_components{c}));
                 title('Original and reconstruction');
                 legend('Original','Reconstruction','Location','best');
                 nexttile;
@@ -298,7 +299,7 @@ for s = 1:numel(data)
                 axis tight;
                 xlabel('i_d in A');
                 ylabel('i_q in A');
-                title(sprintf('Signed r_%s in mVs', char('d'+13*(c-1))));
+                title(sprintf('Signed r_%s in mVs', flux_components{c}));
                 colorbar;
                 clim([-lim lim]);
             end
@@ -486,13 +487,6 @@ if n == 0
 end
 v = sort(vecnorm(r, 2, 2));
 a = [sqrt(mean(r.^2, 1)), sqrt(mean(r.^2,'all')), max(abs(r), [],'all'), v(ceil(.95*n)), n, n/total];
-end
-function x = choose(condition, a, b)
-if condition
-    x = b;
-else
-    x = a;
-end
 end
 function write_tables(paper, data, study, diagnostics, pairs, contours)
 f = fopen(fullfile(paper,'results.tex'),'w');

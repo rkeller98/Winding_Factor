@@ -28,13 +28,15 @@ for dataset_index = 1:numel(data)
     [k, contour, fig] = estimate_contour_factor(currents, flux, groups, true, excitation);
     factors{dataset_index} = struct('k', k, 'contour', contour);
     fig.Name = sprintf('Set%d: contour-factor analysis', dataset_index);
+    fprintf('Set%d conventional factor: %.12f A/A\n', dataset_index, k);
+
+    if isempty(export_format)
+        continue;
+    end
 
     tab_group = findobj(fig, 'Type', 'uitabgroup', 'Tag', 'contour_tabs');
     selected_tab = tab_group.SelectedTab;
-    layouts = gobjects(0);
-    if ~isempty(export_format)
-        layouts = findall(fig, 'Type', 'tiledlayout');
-    end
+    layouts = findall(fig, 'Type', 'tiledlayout');
 
     for layout_index = 1:numel(layouts)
         layout = layouts(layout_index);
@@ -63,8 +65,6 @@ for dataset_index = 1:numel(data)
             fullfile(root, 'winding_factor_study', 'figures', ...
             sprintf('contours_set%d.png', dataset_index)));
     end
-
-    fprintf('Set%d conventional factor: %.12f A/A\n', dataset_index, k);
 end
 
 save(fullfile(output_folder, 'winding_factors.mat'), 'factors');
