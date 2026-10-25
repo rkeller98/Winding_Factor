@@ -1,0 +1,131 @@
+\chapter{Conventional Contour-Based Identification}\label{ch:contour}
+
+\section{What is computed, before interpreting it}
+The conventional procedure compares average current coordinates associated with the same d-flux level in adjacent nominal excitation groups. It produces one global scalar. It does not track a single physical point at constant q-current, and it does not minimize a joint flux-reconstruction error. This chapter specifies the complete statistic so that its mathematical interpretation can be examined separately.
+
+Let the source records be
+\begin{equation}
+\mathcal D=\{(d_j,q_j,e_j,\psi_{d,j},\psi_{q,j},r_j)\}_{j=1}^{N}.
+\end{equation}
+Here $(d_j,q_j,e_j)$ are measured currents, whereas $r_j$ is a nominal excitation reference used to assign a group. Ordered distinct references define groups $g=1,\ldots,G$. A nominal reference is not substituted for the measured $e_j$. In particular, the nominal zero-excitation group need not have exactly zero measured excitation at every record.
+
+\section{Constructing the group meshes}
+Within each group, form a Delaunay triangulation in the measured $(d,q)$ plane. Collect the three edges of every triangle, sort each edge's endpoint indices and remove duplicate index pairs. An interior edge shared by two triangles is therefore present once.
+
+For an edge $a\!-\!b$, define its squared physical-current length
+\begin{equation}
+\ell_{ab}^2=(d_b-d_a)^2+(q_b-q_a)^2.
+\end{equation}
+If the unique edge set is $\mathcal E_g$, its mean squared length is
+\begin{equation}
+\overline{\ell^2}_g=\frac{1}{|\mathcal E_g|}
+\sum_{(a,b)\in\mathcal E_g}\ell_{ab}^2.
+\end{equation}
+Only edges with $\ell_{ab}^2<9\overline{\ell^2}_g$ are retained. This is an empirical geometry filter in the measured stator-current plane. It is not a rejection based on flux error, and it is not a proof that all remaining edges correspond to physically well-sampled contour pieces.
+
+The factor nine applies to squared length; equivalently, the length is compared with three times the root mean squared edge length. The mean is calculated before this edge rejection. The filter can change which portions of a contour contribute to the subsequent average.
+
+\section{Selecting the flux levels}
+Pool the measured d-flux values over all groups, and set
+\begin{equation}
+\psi_{\min}=\min_j\psi_{d,j},\qquad
+\psi_{\max}=\max_j\psi_{d,j},\qquad
+\Delta\psi=\psi_{\max}-\psi_{\min}.
+\end{equation}
+The fitted levels are
+\begin{equation}\label{eq:contour-levels}
+\lambda_\ell=\psi_{\min}
++\left(\frac14+\frac{\ell-1}{99}\frac12\right)\Delta\psi,
+\qquad \ell=1,\ldots,100.
+\end{equation}
+Thus the interval is the middle 25--75\% of the \emph{value range}. It is not the interval between empirical flux quantiles. Uneven sample density does not change this distinction.
+
+The same levels are used for every group. Some levels can lack intersections in some groups; the procedure does not fabricate those contours. Additional 201 levels spanning the full pooled range can be displayed for diagnosis, but they do not enter the fitted scalar. Values outside the fitted interval in such a display therefore illustrate behavior without changing the estimator.
+
+\section{Finding the edge intersections}
+Along a retained edge, assume linear interpolation of the recorded d-flux:
+\begin{equation}
+\widetilde\psi_d(t)=(1-t)\psi_{d,a}+t\psi_{d,b},
+\qquad 0\le t\le1.
+\end{equation}
+Setting this expression equal to $\lambda_\ell$ and subtracting $\psi_{d,a}$ gives
+\begin{align}
+t(\psi_{d,b}-\psi_{d,a})&=\lambda_\ell-\psi_{d,a},\\
+t_{ab,\ell}&=\frac{\lambda_\ell-\psi_{d,a}}
+{\psi_{d,b}-\psi_{d,a}}.\label{eq:edge-fraction}
+\end{align}
+A crossing is retained only if this computed fraction lies in $[0,1]$. Equal endpoint fluxes produce a zero denominator; nonfinite fractions do not satisfy this condition. In particular, a complete edge coinciding with the level is not integrated as a contour segment by this rule.
+
+Interpolate all three measured currents with the same fraction:
+\begin{equation}\label{eq:intersection-current}
+\bm c_{ab,\ell}=
+\begin{bmatrix}d_a\\q_a\\e_a\end{bmatrix}
++t_{ab,\ell}
+\left(\begin{bmatrix}d_b\\q_b\\e_b\end{bmatrix}
+-\begin{bmatrix}d_a\\q_a\\e_a\end{bmatrix}\right).
+\end{equation}
+Although the mesh has only two coordinate axes, excitation is an interpolated measured scalar attached to its vertices. A nominal group therefore represents an empirical excitation graph over $(d,q)$, not necessarily a plane of exactly constant measured $e$.
+
+\section{Averaging the crossing coordinates}
+If group $g$ and level $\ell$ have $M_{g\ell}$ retained crossings, calculate
+\begin{equation}\label{eq:crossing-mean}
+\overline{\bm c}_{g\ell}
+=\frac{1}{M_{g\ell}}\sum_{m=1}^{M_{g\ell}}\bm c_{g\ell,m}
+=\begin{bmatrix}\bar d_{g\ell}\\\bar q_{g\ell}\\\bar e_{g\ell}\end{bmatrix}.
+\end{equation}
+An empty crossing set yields an unavailable mean. Every crossing has equal weight. The construction does not weight a point by the length of the contour segment it represents or by measurement uncertainty.
+
+Removing duplicate edges does not remove every geometrically repeated crossing. If a contour passes exactly through a vertex, several distinct incident edges can contribute that vertex. This multiplicity is part of the arithmetic statistic. Disconnected contour pieces are pooled unless the geometry or edge filter excludes them. The term \emph{centroid} below is shorthand for the coordinate average~\eqref{eq:crossing-mean}; it does not imply an area centroid or an arclength centroid.
+
+\section{Adjacent differences and the final scalar}
+For adjacent ordered groups, form
+\begin{align}
+\Delta\bar d_{g\ell}&=\bar d_{g+1,\ell}-\bar d_{g\ell},\\
+\Delta\bar q_{g\ell}&=\bar q_{g+1,\ell}-\bar q_{g\ell},\\
+\Delta\bar e_{g\ell}&=\bar e_{g+1,\ell}-\bar e_{g\ell}.
+\end{align}
+The conventional individual ratio and a separate signed diagnostic are
+\begin{equation}\label{eq:individual-ratio}
+\kappa_{g\ell}=\frac{|\Delta\bar d_{g\ell}|}{\Delta\bar e_{g\ell}},
+\qquad
+\kappa^{\rm signed}_{g\ell}=-\frac{\Delta\bar d_{g\ell}}{\Delta\bar e_{g\ell}}.
+\end{equation}
+Only the numerator of $\kappa$ is absolute. The denominator remains signed. Sorting the complete nominal groups is therefore essential, but it does not mathematically force every measured centroid denominator to be positive. If a measured denominator is negative, a finite negative ratio remains negative. No positive-factor constraint is inserted into the conventional mean.
+
+Let $\mathcal I$ contain the finite ratios from the 100 fitted levels whose magnitudes are not below the numerical machine-precision threshold used by the procedure. Then
+\begin{equation}\label{eq:k-conventional}
+\boxed{
+k_{\rm conv}=\frac{1}{|\mathcal I|}
+\sum_{(g,\ell)\in\mathcal I}
+\frac{|\bar d_{g+1,\ell}-\bar d_{g\ell}|}
+{\bar e_{g+1,\ell}-\bar e_{g\ell}}.}
+\end{equation}
+The numerical zero screen is not a physical uncertainty criterion. A very small but nonzero denominator can still create a very large finite contribution.
+
+Equation~\eqref{eq:k-conventional} is a mean of quotients, not a quotient of pooled displacements:
+\begin{equation}
+\frac1m\sum_{n=1}^{m}\frac{A_n}{B_n}
+\ne\frac{\sum_n A_n}{\sum_n B_n}
+\end{equation}
+in general. A group pair and level receive one equal contribution regardless of the number of crossings or the excitation separation. These implicit weights matter when interpreting the final factor.
+
+\section{Two diagnostic quantities that are not flux-reconstruction errors}
+The q-current drift of adjacent contour averages is
+\begin{equation}\label{eq:q-drift}
+D_{g\ell}=\frac{\Delta\bar q_{g\ell}}{\Delta\bar e_{g\ell}}.
+\end{equation}
+It measures movement of the average q-coordinate per excitation-current change. It does not measure the response of a point constrained to a specified physical q-current.
+
+Construct a separate linear, nonextrapolating interpolation $\widetilde\psi_{d,g}(d,q)$ from the group's original source values. The centroid departure is
+\begin{equation}\label{eq:centroid-departure}
+\epsilon^{\rm cent}_{g\ell}
+=\widetilde\psi_{d,g}(\bar d_{g\ell},\bar q_{g\ell})-\lambda_\ell.
+\end{equation}
+It asks whether the average coordinate lies on the chosen contour of that group interpolant. The centroid interpolation uses the original group triangulation; its evaluation is not the result of querying a merged reduced lookup table. Its support rule also need not coincide with the filtered crossing-edge rule.
+
+A large $\epsilon^{\rm cent}$ proves a departure from the chosen interpolated contour at that average coordinate. It does not directly equal an error in $k_{\rm conv}$ or a reconstructed-flux error. Chapter~\ref{ch:mathematics} shows precisely why differences of centroid biases, rather than their absolute sizes alone, affect a displacement estimate.
+
+\section{What this procedure has and has not identified}
+The procedure is now reproducible: measured currents determine the geometry and interpolated coordinates; nominal references define the group order; 100 pooled levels determine the fitted range; equal crossing weights and equal quotient weights determine the statistic. None of these steps uses $\psi_q$ to choose $k_{\rm conv}$.
+
+An interpretation as a local differential compensation factor requires additional assumptions about the path, q-current, centroid location and local sensitivities. An interpretation as an optimal two-output reduction additionally requires a specified reconstruction objective. Neither interpretation follows simply from the name of the coefficient or from smooth-looking shifted surfaces.

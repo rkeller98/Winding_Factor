@@ -1,71 +1,352 @@
-\subsection{The estimator and derivative evidence}
-\begin{table}[htbp]\centering\small\caption{All-data constant factors in A/A. B uses fixed-q d-flux prediction; C uses joint flux prediction. The derivative LS column optimizes a different criterion.}\FactorTable\label{tab:factors}\end{table}
-The conventional factors are 13.4921, 13.5184 and 14.7642 for Sets 1--3. Their difference from the earlier saved numbers reflects a fresh common preprocessing run rather than reuse of historical results. The fixed-q estimate B and joint estimate C are identified independently. Differences among A, B, C and the derivative LS estimate cannot be attributed solely to q-current drift: the objectives, sampled points, surface approximations and weighting rules also differ.
+\chapter{Alternative Identification and Representation Strategies}\label{ch:alternatives}
 
-\begin{table}[htbp]\centering\small\caption{Contour diagnostics. Centroid RMS is the d-flux difference between a contour's coordinate centroid and its selected level; it is not a reconstruction RMSE. The final column quantifies centroid q-current drift.}\ContourTable\end{table}
-Nonzero centroid departure confirms that mean contour coordinates are generally not points of the same constant-flux contour. The drift term in~\eqref{eq:drift} is therefore not the only distinction between the implemented statistic and a fixed-q local derivative.
-The intersection mean is unweighted by contour length. Its sensitivity to mesh geometry and incomplete support is an algorithmic possibility; the present results do not isolate either mechanism as the physical cause of the measured discrepancies. The follow-up \texttt{k\_factor\_investigation} compares these effects without changing the conventional reference results.
+The preceding chapters establish several different limitations: a contour statistic can depend on sampling, a common scalar coordinate can be incompatible with both flux components, a finite table can introduce its own errors, and measurement uncertainty can distort all of these diagnostics. A proposed improvement should state which limitation it addresses. Improving an estimator does not automatically increase the structural freedom of its coordinate model.
 
-\begin{table}[htbp]\centering\small\caption{Primary 80-neighbor derivative diagnostics. All residual norms are dimensionless ratios of inductance norms, not relative flux errors.}\DerivativeTable\label{tab:derivatives}\end{table}
-The global derivative factors are approximately 13.84, 13.95 and 14.45. Changing from A to the derivative-optimal constant only modestly reduces the aggregate derivative residual. Even a pointwise joint factor leaves a nonzero residual. The primary normalized-direction medians are approximately 0.090, 0.087 and 0.144. This is evidence of imperfect collinearity in the estimated sensitivities, with larger directional disagreement in Set 3. It is not a calibrated physical percentage error.
+\section{Robust contour identification}
+\subsection{Length weighting changes the averaging measure}
+If an interpolated contour consists of segments with endpoints $\bm a_m,\bm b_m$ in the stator-current plane, define segment lengths $\ell_m=\norm{\bm b_m-\bm a_m}$. On a straight segment, the coordinate integral is
+\begin{equation}
+\int_0^{\ell_m}\left(\bm a_m+\frac{\ell}{\ell_m}(\bm b_m-\bm a_m)\right)\dd\ell
+=\ell_m\frac{\bm a_m+\bm b_m}{2}.
+\end{equation}
+The centroid of the piecewise-linear curve is therefore
+\begin{equation}
+\bm c_{\rm length}=
+\frac{\sum_m\ell_m(\bm a_m+\bm b_m)/2}{\sum_m\ell_m}.
+\end{equation}
+Subdividing one straight segment without changing its geometry preserves this integral. This avoids the simple duplicate-point sensitivity of an unweighted crossing average. Disconnected components still require an explicit decision about whether their lengths should be pooled or their branches matched separately.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{derivative_set3.png}
-\caption{Representative Set 3 derivative maps. The separate q-flux ratio is poorly conditioned when its d-current sensitivity is small. Joint LS avoids dividing by that individual cross-inductance, while the determinant measure asks whether one local d-compensation direction can serve both outputs.}\label{fig:derivative}\end{figure}
-\begin{table}[htbp]\centering\small\caption{Derivative-neighborhood sensitivity on the same retained physical points within each dataset. The changes reflect numerical slope estimation, not a change in machine turns.}\SensitivityTable\end{table}
-The neighborhood study retains the same source and coordinate convention and compares common derivative points. Its variation remains relevant when interpreting the numerical inductances; no confidence interval for exact physical derivatives is inferred.
+Length weighting does not force the resulting centroid onto a curved contour. The variance mechanism in Equation~\eqref{eq:variance-departure} remains, now with a different weighting measure. Noise in contour location, ambiguous branches and gaps in measured support remain relevant. It is therefore a more geometrically defined statistic, not a proof of unbiased physical factor identification.
 
-\subsection{Independent transformed-surface compatibility}
-\begin{table}[htbp]\centering\small\caption{Joint RMS disagreement of adjacent transformed original surfaces in mVs, pooled by valid pair counts on identical supported anchors across A--G. These are surface differences, not shared-table reconstruction errors.}\SurfaceTable\label{tab:surfaces}\end{table}
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{surface_set2.png}
-\caption{A representative adjacent excitation pair in Set 2. Each panel compares two independent original surfaces at the same reduced coordinates, before merging. Positive and negative differences are displayed with a common zero-centred scale. The methods use the same retained physical anchors.}\label{fig:surface}\end{figure}
-The maps locate where separate groups ask a common table for different values. Improving the scalar factor can move and reduce some discrepancies, but a shared table cannot simultaneously reproduce distinct requested values at one coordinate. Pairwise incompatibility and derivative-direction disagreement are complementary evidence. They do not supply an isolated physical error floor because original-surface interpolation and measurement uncertainty remain present. The folding report records reversed projected facets and ambiguous query memberships; these queries are excluded rather than assigned an arbitrary surface value.
+\subsection{Robust locations and fixed-q comparisons}
+A componentwise median or a geometric median can reduce the effect of isolated extreme crossing coordinates. For example, the geometric median minimizes $\sum_m\norm{\bm c-\bm c_m}$. It does not necessarily lie on the contour, and changing the number or extent of disconnected pieces can still move it. Robust statistics address a specified contamination model; they do not remove curvature or coverage effects without further assumptions.
 
-The pooled adjacent-surface disagreement for A is 1.868, 1.820 and 2.597 mVs in Sets 1--3; G changes these values to 1.800, 1.751 and 2.422 mVs. The larger Set 3 disagreement is qualitatively consistent with its larger derivative-direction diagnostic, while neither numerical procedure eliminates its own estimation uncertainty. These pairwise surface differences must not be subtracted from shared-table RMSEs: they use different queries and error definitions.
+Comparing at the same physical $i_q=q_0$ more directly addresses the interpretation of Equation~\eqref{eq:fixed-q-slope}. For each excitation level, solve
+\begin{equation}
+\psi_d(d,q_0,e)=\lambda
+\end{equation}
+for a consistent d-current branch. Differences of these d-values no longer contain a moving-q term. Existence, branch uniqueness, sufficiently large $L_{dd}$, overlapping support and reliable interpolation are necessary. A family of nominal groups with measured excitation scatter also needs a clearly defined excitation coordinate at the selected crossing. Replacing measured excitation by a group label silently changes the experiment.
 
-\subsection{Shared-table reconstruction and missing-group prediction}
-\ResultTables
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{overview.png}
-\caption{Overall method comparison. Upper panels: joint RMSE on the same interior whole-group prediction support for A--H. Lower panels: cumulative distributions of vector error on that support. The curves allow an error--coverage assessment without imposing an application-independent acceptance threshold.}\label{fig:overview}\end{figure}
-The reconstruction rows include the entire storage-and-return operation. They use the source points again and therefore measure approximation of available data rather than prediction of new excitation groups. The prediction rows remove a full group, refit all parameters from the remaining data and then query the unseen group. These two rows of evidence must not be interchanged.
+A different geometric approach aligns entire contours. For instance, one can minimize a weighted distance from the shifted first contour to the second:
+\begin{equation}
+\mathcal E(\delta)=
+\int_{\mathcal C_g}
+\operatorname{dist}\!\left((d+\delta,q),\mathcal C_{g+1}\right)^2
+w(d,q)\,\dd\ell.
+\end{equation}
+Turning the displacement into a factor additionally requires a defined excitation separation. Density weights, unmatched contour ends, ambiguous nearest points and branch changes affect the result. Symmetric two-direction distances can reduce one-sided matching bias, but do not supply missing contour coverage.
 
-On the common interior prediction points, A has joint RMSE values of 5.998, 6.309 and 6.970 mVs in Sets 1--3. C gives 5.518, 5.736 and 6.996 mVs: optimizing a joint training criterion improves the first two sets but does not improve the unseen-group aggregate in Set 3. B also does not rank uniformly above or below C. These outcomes preclude attributing the remaining error solely to the conventional estimator or to moving q-current.
+These alternatives are mathematical proposals here. The available conventional and diagnostic results motivate them; a new quantitative ranking of these contour estimators has not been performed in this manuscript.
 
-E gives 5.453, 5.470 and 6.839 mVs; F gives 5.490, 5.653 and 6.529 mVs; G gives 5.513, 5.443 and 6.425 mVs. E is the best reduced candidate in Set 1, and G is best in Sets 2 and 3. G's advantage over E in Set 2 is only 0.027 mVs, while G is slightly worse than E in Set 1. In Set 3 its advantage over the simpler F is 0.104 mVs, with a lower d-flux error but a higher q-flux error. The ranking therefore depends on machine configuration and on the equal-component aggregate used here.
+\section{An optimized global scalar factor}
+\subsection{Reconstruction fitting and fixed-map alignment are different}
+For a candidate constant $k$, transform every training point by $(s,q)=(i_d+ki_e,i_q)$ and construct a matching common table $\widehat{\bm F}_k$. On a population $\mathcal P$ fixed before searching, a joint criterion is
+\begin{equation}\label{eq:scalar-reconstruction-objective}
+\mathcal J_{\rm rec}(k)=\frac1{|\mathcal P|}
+\sum_{j\in\mathcal P}
+\norm{\widehat{\bm F}_k(i_{d,j}+ki_{e,j},i_{q,j})-\ps_j}^2.
+\end{equation}
+Both components enter in Vs with equal weights. Replacing the mean by a sum gives the same minimizer when $\mathcal P$ is fixed. There is no component normalization that implicitly makes one axis more important.
 
-H gives 1.787, 1.780 and 1.480 mVs, substantially below every reduced candidate on the identical points. The common prediction coverages are 89.15\%, 89.03\% and 90.75\% of the eligible interior points. This is a strong empirical accuracy advantage for retaining excitation in these data, although it includes the stated interpolation and storage effects and is not a proof against every possible two-coordinate representation.
+The subscript $k$ on the table is essential: the model is rebuilt consistently with the coordinates. In a fixed-map diagnostic, the reference $\widehat{\bm F}_{\rm ref}$ stays unchanged while only the query moves. That asks how well a specified reference can be aligned, rather than how well a newly constructed reduction performs. The pointwise diagnostics in Chapter~\ref{ch:results} use such fixed references.
 
-The cumulative error curves are conditional on common supported points. To express a retained fraction relative to all eligible points, multiply the plotted fraction by the reported common coverage. Missing support is not a zero-error observation.
+A finite grid makes Equation~\eqref{eq:scalar-reconstruction-objective} nonsmooth in practice. Changing $k$ can switch a scattered triangulation, a rejected simplex or a supported raster cell. A bounded search result is consequently a computed numerical candidate, not a proven global optimum.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{reconstruction_set2.png}
-\caption{Representative Set 2 group for C. Each flux row compares the original and reconstruction in 3D at the left and shows the signed physical-current error at the right. Only supported parts of the original excitation graph are displayed. Numerical tables use point-based errors rather than this display grid.}\label{fig:reconstruction2}\end{figure}
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{reconstruction_set3.png}
-\caption{The corresponding representative view for the separate machine in Set 3. The atlas supplies the same comparison for every excitation group and method.}\label{fig:reconstruction3}\end{figure}
+\subsection{Keeping the evaluation population fixed}
+Computing a mean only over whichever points each candidate happens to support creates a serious loophole: a candidate could improve its score by losing the difficult points. One remedy is a predetermined population and an infeasibility condition whenever a candidate loses any of those predictions. The recent consistent-global fits use a one-grid-cell interior support guard at the reference seed to choose such a population.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set1.png}
-\caption{Set 1 per-group RMSE. Upper panels: reconstruction. Lower panels: interior whole-group prediction. A missing boundary marker denotes absence from the all-model interior comparison, not an observed zero error. Boundary results are reported separately.}\label{fig:rmse1}\end{figure}
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set2.png}
-\caption{Set 2 per-group RMSE with the same definitions and common-support policy.}\label{fig:rmse2}\end{figure}
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{rmse_set3.png}
-\caption{Set 3 per-group RMSE. Each curve's parameters were identified independently for this machine configuration.}\label{fig:rmse3}\end{figure}
+A different existing investigation replaced missing components by a 1 Vs residual while keeping its evaluation denominator fixed. This also prevents simply omitting points, but changes the criterion strongly. In the earlier constant fixed-map two-axis diagnostic, the missing-data contribution accounted for approximately 99.6--99.7\% of the total objective. Its selected factors primarily reflected the coverage trade-off. That diagnostic is therefore not presented as the practical consistent-global solution.
 
-\begin{table}[htbp]\centering\small\caption{Fitted variable-shift coefficients in A/A. Empty coefficients are shown as NaN. The current scales come from the respective training dataset; coefficients of different datasets are not directly transferable.}\ParameterTable\label{tab:parameters}\end{table}
-\begin{table}[htbp]\centering\small\caption{Number of fitting runs with a nonpositive termination flag, including the all-data fit and every outer fit. Finite-budget outcomes are retained transparently rather than called converged optima.}\OptimizerTable\label{tab:optimization}\end{table}
-The coefficients describe restricted coordinate functions, not independent shifts fitted to each final group. Because each outer prediction uses its own training fit, the all-data coefficient table alone does not reproduce the prediction curves; the fold parameters are part of the saved numerical result. G's positive fixed-excitation Jacobian is checked at every held-out physical point as well as on its training box. The fold geometry report also counts points outside the training-current box; support in reduced coordinates alone is not evidence of interpolation in every physical current.
+A fixed-population rule still requires reporting its population and the model's full coverage separately. It does not prove that excluded boundary regions are unimportant or validate extrapolation there.
 
-All B--F fits meet their stated numerical termination criterion. Four of the 40 G fits, counting the all-data and outer fits, reach a finite search limit instead. Their best visited coefficients are retained, but G's ranking is consequently a comparison of computed candidates, not a certified converged optimum. This further limits the case for preferring its additional complexity on the basis of very small RMSE differences.
+\subsection{What the existing scalar comparisons establish}
+A jointly fitted scalar and a contour factor can differ because they optimize different finite-data quantities, not because one is automatically a corrected physical turns ratio. The archived joint-scalar fitting used inner omitted-group queries rather than the recent all-data reconstruction objective. It also differs from the derivative criterion~\eqref{eq:global-derivative-ls}.
 
-Across all 37 held-out groups, the smallest evaluated G Jacobian is 0.759; none is nonpositive or below the training margin of 0.25. This confirms the fixed-other-currents monotonicity check at the evaluated points, while the separate empirical excitation-graph folding check remains necessary.
+On the archived common interior prediction points, conventional scalar, jointly fitted scalar, two-axis and full three-current results are compared later in Table~\ref{tab:archive-prediction}. Joint scalar fitting improves the first two datasets there but does not improve the third. Eliminating a contour-centroid statistic is therefore useful as a change of objective, but is not a universal solution of the reduction problem.
 
-\subsection{Boundary groups and unsupported extrapolation}
-\begin{table}[htbp]\centering\small\caption{Boundary-group prediction for representative methods. C/G use the reduced-model common support. H uses its own support and is therefore not a matched-support accuracy comparison with C/G. Excitation is nominal, in A. Full A--H boundary metrics are supplied per group in the numerical material.}\BoundaryTable\label{tab:boundary}\end{table}
-Boundary removal is more demanding than interpolation between retained excitation groups. H can lose all support when no remaining point surrounds the query in physical three-current space. Reduced coordinates may remain supported even though excitation lies outside the observed training range. The reported boundary errors assess only those available measured points; they do not validate unrestricted excitation extrapolation or an unmeasured operating range.
+\section{Two constant global excitation factors}
+\subsection{The complete local condition}
+Consider one common coordinate pair for both flux outputs:
+\begin{equation}\label{eq:two-axis-coordinates}
+s_d=i_d+k_di_e,\qquad s_q=i_q+k_qi_e,
+\qquad \ps=\bm F(s_d,s_q).
+\end{equation}
+The two constants form $\bm k=(k_d,k_q)^{\mathsf T}$. At fixed $(s_d,s_q)$, the physical stator currents satisfy
+\begin{equation}
+\frac{\dd}{\dd i_e}\begin{bmatrix}i_d\\i_q\end{bmatrix}
+=-\begin{bmatrix}k_d\\k_q\end{bmatrix}.
+\end{equation}
+For each output, differentiate along this discarded direction:
+\begin{align}
+\left.\frac{\partial\psi_d}{\partial i_e}\right|_{\bm s}
+&=L_{de}-L_{dd}k_d-L_{dq}k_q,\\
+\left.\frac{\partial\psi_q}{\partial i_e}\right|_{\bm s}
+&=L_{qe}-L_{qd}k_d-L_{qq}k_q.
+\end{align}
+The necessary condition for exact reduction is therefore
+\begin{equation}\label{eq:two-axis-condition}
+\boxed{
+\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}
+=
+\begin{bmatrix}L_{dd}&L_{dq}\\L_{qd}&L_{qq}\end{bmatrix}
+\begin{bmatrix}k_d\\k_q\end{bmatrix}.}
+\end{equation}
+This uses all six derivatives of the two measured flux outputs with respect to the three currents. Excitation-circuit flux and its three additional derivatives have not been independently identified here.
 
-\subsection{Numerical controls and excitation-reference sensitivity}
-\begin{table}[htbp]\centering\small\caption{Scaling and raster controls. The four scaling rows use one common physical mask per dataset. The three raster rows use a separate common mask across the three raster resolutions. Counts are therefore not interchangeable between controls. Errors are in mVs.}\NumericalTable\label{tab:numerical}\end{table}
-Raw and normalized axes can generate different triangulations even with identical source values. Differences between a normalized 3D reference and an unnormalized 2D reduction would mix coordinate-model and numerical effects. Here both are normalized in the primary comparison, and the four-way control makes the scaling dependence visible. Changing raster density quantifies the storage contribution for A without identifying a unique physical cause of the remaining error. RMSE differences between these rows are not subtracted to estimate a structural error component.
+The scalar model restricts the compensation to $(k,0)^{\mathsf T}$. A nonzero $k_q$ adds a second direction through which excitation can be compensated. This differs from fitting separate d-shifts for the two outputs: both outputs in Equation~\eqref{eq:two-axis-coordinates} use the same coordinate pair.
 
-\begin{table}[htbp]\centering\small\caption{Sensitivity of the A table output to replacing measured excitation by the nominal group label at the query. These are differences between two returned predictions, not measurement errors.}\NominalTable\label{tab:nominal}\end{table}
-Within-group excitation scatter therefore has a concrete coordinate consequence. This calculation keeps the same shared table and changes only the query. It is separate from the fixed-reference convention of a relabelled historical single-group table. The source audit confirms the actual convention of each available historical export rather than assuming that every export already carries current metadata.
+\subsection{Local solutions, global constants and invertibility}
+If $\det\Lmat=L_{dd}L_{qq}-L_{dq}L_{qd}\ne0$, matrix inversion gives the unique local compensating pair
+\begin{align}
+k_d^{\rm loc}
+&=\frac{L_{qq}L_{de}-L_{dq}L_{qe}}{\det\Lmat},\\
+k_q^{\rm loc}
+&=\frac{L_{dd}L_{qe}-L_{qd}L_{de}}{\det\Lmat}.
+\end{align}
+A small determinant relative to matrix size makes this computation sensitive; conditioning must be checked, not just algebraic nonzero values. For singular $\Lmat$, $\bm b$ may be outside its range, giving no exact local pair, or inside its range, giving nonunique pairs.
 
-Three small analytic controls were evaluated directly. Moving between distinct physical points on a fibre gives zero discrepancy for an exact constant shift; the integrated variable shift agrees to about $1.1\times10^{-16}$ Vs. Replacing the integrated shift by $i_e k_{\mathrm{diff}}$ in that example gives a maximum error of 0.27 Vs. A deliberately incompatible example gives the same $(s,q)$ but q-flux values separated by 2 Vs. These controls illustrate the mathematical distinctions; their arbitrary scales are not machine-accuracy benchmarks.
+Existence of a local pair at every point does not establish that one constant pair works everywhere. With a prescribed constant $\bm k$, the augmented transformation
+\begin{equation}
+\begin{bmatrix}s_d\\s_q\\i_e\end{bmatrix}
+=
+\begin{bmatrix}1&0&k_d\\0&1&k_q\\0&0&1\end{bmatrix}
+\begin{bmatrix}i_d\\i_q\\i_e\end{bmatrix}
+\end{equation}
+is always invertible and has determinant one. Discarding its third coordinate remains a projection: distinct physical points can share the same $(s_d,s_q)$. Equation~\eqref{eq:two-axis-condition}, together with the corresponding connected-fibre or intercomponent consistency condition, is locally and globally interpreted exactly as in Proposition~\ref{prop:scalar-factorization}. Invertibility of $\Lmat$ and invertibility of the augmented coordinate change are different questions.
+
+Likewise, the pointwise inverse problem in Chapter~\ref{ch:results} can fit one known flux pair with two query coordinates. That does not require every point to share a common physical compensation direction, nor does it identify an online function of measured currents alone.
+
+\subsection{Consistent global fitting and current results}
+The recent two-axis global fit rebuilds the common $81\times81$ table for each candidate. It minimizes the equal-component squared flux error on the fixed populations 7093, 7693 and 8625 for Sets 1--3. Any candidate losing a member of that population is infeasible. Bounds are centered on the available reference pair, with several targeted starts and a finite search budget. These settings define a focused local numerical refinement.
+
+Table~\ref{tab:consistent-global} gives the resulting all-data factors and own-supported-point errors. The reference pairs used for pointwise two-axis alignment were instead $(14.336652,-0.025602)$, $(14.186955,-0.091824)$ and $(14.627088,-0.787874)$ A/A from the earlier common-map analysis. Their tables remain fixed for that diagnostic; they are not silently replaced by the new maps.
+\begin{table}[htbp]\centering\small
+\caption{Consistent global two-axis fits. Errors are reconstruction RMSE in mVs on each fit's own supported points, not the smaller pointwise common populations.}\label{tab:consistent-global}
+\begin{tabular}{crrrrrr}
+\toprule
+Set & $k_d$ & $k_q$ & RMSE d & RMSE q & Joint & Valid/total\\
+\midrule
+1 & 14.334062 & $-0.013622$ & 5.037 & 4.198 & 4.636 & 7213/7476\\
+2 & 14.302419 & $-0.078626$ & 5.175 & 4.236 & 4.729 & 7809/8092\\
+3 & 14.826705 & $-0.879645$ & 5.370 & 5.502 & 5.437 & 8771/9022\\
+\bottomrule
+\end{tabular}
+\end{table}
+The matched four-method reconstruction comparison in Chapter~\ref{ch:results} uses a different, explicitly shared population. Neither table is an independent prediction test.
+
+\subsection{Measured excitation scatter can fold a projected group}
+For exactly constant measured $i_e$, Equation~\eqref{eq:two-axis-coordinates} is a translation of each stator-current mesh. It preserves its signed triangle areas. A nominal group with an excitation graph $i_e=e(i_d,i_q)$ instead has Jacobian
+\begin{equation}
+J_{\rm graph}=
+\begin{bmatrix}
+1+k_de_d&k_de_q\\
+k_qe_d&1+k_qe_q
+\end{bmatrix}.
+\end{equation}
+Expanding its determinant cancels the product term:
+\begin{align}
+\det J_{\rm graph}
+&=(1+k_de_d)(1+k_qe_q)-k_dk_qe_de_q\\
+&=1+k_de_d+k_qe_q.\label{eq:graph-determinant}
+\end{align}
+A negative determinant reverses local orientation. A small determinant indicates local area compression. Slight pointwise excitation scatter can matter strongly on narrow or poorly conditioned current triangles because its estimated spatial gradient can be large.
+
+For a triangle on which the measured excitation is linearly interpolated, this relation describes the exact affine projected area ratio. The numerical geometry check nevertheless compares the actual original and transformed triangles and retains their original connectivity. No artificial links between groups are needed to produce a fold within one group. Overlap between different excitation groups is also not, by itself, an error: overlap is required if a common map is to serve them. Their demanded flux values must agree there for exact reduction.
+
+\section{A general linear four-parameter transformation}
+\subsection{Deriving the effective factors}
+The investigated extension is
+\begin{equation}\label{eq:four-coordinates}
+\bm s=A\bm i_s+\bm b i_e,\qquad
+A=\begin{bmatrix}1&k_{dq}\\k_{qd}&1\end{bmatrix},
+\quad
+\bm b=\begin{bmatrix}k_{de}\\k_{qe}\end{bmatrix},
+\end{equation}
+where $\bm i_s=(i_d,i_q)^{\mathsf T}$. The first index identifies the target coordinate, the second the source current. Thus
+$s_d=i_d+k_{dq}i_q+k_{de}i_e$ and
+$s_q=k_{qd}i_d+i_q+k_{qe}i_e$.
+
+Let $D=1-k_{dq}k_{qd}$. If $D\ne0$, direct multiplication gives
+\begin{equation}
+A^{-1}=\frac1D
+\begin{bmatrix}1&-k_{dq}\\-k_{qd}&1\end{bmatrix}.
+\end{equation}
+Multiplying Equation~\eqref{eq:four-coordinates} by this inverse yields
+\begin{equation}
+A^{-1}\bm s=\bm i_s+(A^{-1}\bm b)i_e
+=\bm i_s+\bm k^{\rm eff}i_e,
+\end{equation}
+with
+\begin{align}
+k_d^{\rm eff}&=\frac{k_{de}-k_{dq}k_{qe}}{1-k_{dq}k_{qd}},\\
+k_q^{\rm eff}&=\frac{k_{qe}-k_{qd}k_{de}}{1-k_{dq}k_{qd}}.
+\label{eq:effective-factors}
+\end{align}
+Conversely, $\bm b=A\bm k^{\rm eff}$ gives
+$k_{de}=k_d^{\rm eff}+k_{dq}k_q^{\rm eff}$ and
+$k_{qe}=k_q^{\rm eff}+k_{qd}k_d^{\rm eff}$.
+This inverse relation provides a numerically transparent parameterization by two shears and two effective factors.
+
+If a continuously selectable flux function is $\bm G(\bm i_s+\bm k^{\rm eff}i_e)$, define $\bm F(\bm s)=\bm G(A^{-1}\bm s)$. Then
+\begin{equation}
+\bm F(A\bm i_s+\bm b i_e)
+=\bm G(\bm i_s+\bm k^{\rm eff}i_e).
+\end{equation}
+An invertible $A$ therefore adds a change of reduced coordinates, not additional structural freedom to remove excitation. Its four coefficients are not four independently identifiable magnetic compensation mechanisms.
+
+\subsection{Finite grids do not commute with the coordinate change}
+A regular rectangular grid in $\bm s$ maps to a generally oblique grid in $A^{-1}\bm s$. A finite interpolation operator on one rectangular grid does not generally give the transformed version of the interpolation on the other grid. Range normalization can also change the scattered triangulation and its long-simplex rejection. Raster alignment, finite support and interpolation can thus change reconstruction error even at identical effective factors.
+
+The investigation uses the same 81-node resolution per reduced axis and the same linear scattered-field and multilinear-return conventions as the two-axis fit. Shears are bounded by $\pm0.35$, $\det A$ must remain at least 0.5, and its condition number must not exceed 3. The effective-factor bounds and fixed physical fit population come from the two-axis reference. Geometry constraints prevent new or deepened folds, and finalists with additional positive-area self-overlap are rejected. Existing measurement-graph folds are retained rather than smoothed away.
+
+Table~\ref{tab:four-parameters} reports the best computed candidates. Their effective factors agree, to the displayed precision, with the two-axis factors. Several starts, including starts with slightly changed effective compensation, were explored. Some four-dimensional starts exhausted their evaluation budget, and different starts gave different nearby solutions. No global optimality or unique physical parameter interpretation is established.
+\begin{table}[htbp]\centering\small
+\caption{Four global coefficients and their two effective factors, in A/A. The order is target then source.}\label{tab:four-parameters}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{crrrrrr}
+\toprule
+Set & $k_{dq}$ & $k_{de}$ & $k_{qd}$ & $k_{qe}$ & $k_d^{\rm eff}$ & $k_q^{\rm eff}$\\
+\midrule
+1 & $-0.015959$ & 14.334280 & $-0.000758$ & $-0.024482$ & 14.334062 & $-0.013622$\\
+2 & 0.006774 & 14.301887 & 0.000979 & $-0.064618$ & 14.302419 & $-0.078626$\\
+3 & 0.029437 & 14.800811 & $-0.037396$ & $-1.434100$ & 14.826705 & $-0.879645$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Measured benefit, coverage and a simple prediction check}
+Table~\ref{tab:four-comparison} compares reconstruction on identical physical points. These are in-sample results after the finite table has been built.
+\begin{table}[htbp]\centering\small
+\caption{Matched-support joint reconstruction RMSE in mVs for two-axis and four-parameter models. These populations differ from the pointwise comparisons.}\label{tab:four-comparison}
+\begin{tabular}{crrrr}
+\toprule
+Set & Common points & Two-axis & Four-parameter & Reduction\\
+\midrule
+1 & 7205 & 4.638689 & 4.610750 & 0.60\%\\
+2 & 7805 & 4.730083 & 4.707679 & 0.47\%\\
+3 & 8749 & 5.441288 & 5.414354 & 0.49\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+Own support changes from 7213 to 7212 of 7476 points, from 7809 to 7808 of 8092, and from 8771 to 8783 of 9022. None of the 7093, 7693 and 8625 fixed fit points is lost. Coverage is therefore approximately unchanged; the small reconstruction benefit is not obtained by dropping members of the fit objective.
+
+A controlled shear-only fit holds the original two effective factors fixed. These controls use their own common fixed-fit populations of 7093, 7693 and 8625 points, rather than the larger populations in Table~\ref{tab:four-comparison}. On those control populations, the shear-only fits reproduce the complete selected improvement; removing the shear while retaining the same effective factors returns the original two-axis result. This directly supports a finite-representation interpretation for the observed benefit. It does not prove that no other bounded candidate could perform better.
+
+The coordinate matrices remain well conditioned, with condition numbers approximately 1.017, 1.008 and 1.008. The original refined two-axis solutions have 129, 128 and 80 reversed projected triangles, respectively; the selected four-parameter solutions retain these counts, with no degenerate triangles and no additional positive-area self-overlap. An invertible coordinate matrix does not make the original three-current projection injective or erase the measured excitation graphs' folds.
+
+A further existing check omits one inner nominal excitation group per dataset and refines the models using the remaining groups. Table~\ref{tab:four-holdout} uses common supported points in those omitted groups.
+\begin{table}[htbp]\centering\small
+\caption{A single omitted-group check per dataset. Joint flux RMSE is in mVs; excitation references are in A. This is not the archived multi-group prediction protocol.}\label{tab:four-holdout}
+\begin{tabular}{crrrr}
+\toprule
+Set & Omitted group & Common points & Two-axis & Four-parameter\\
+\midrule
+1 & 20 & 566 & 3.942223 & 3.923104\\
+2 & 17 & 566 & 4.089728 & 4.205774\\
+3 & 15 & 911 & 4.547489 & 4.830587\\
+\bottomrule
+\end{tabular}
+\end{table}
+The benefit is small in Set 1 and reverses in Sets 2 and 3. The check does not constitute a blind independent measurement campaign or remove earlier design choices informed by the datasets. It supplies no consistent prediction advantage. The additional focused fitting took roughly 30--50 s per dataset in the inspected runs, compared with roughly 11--13 s for the two-axis refinement. These are observed offline times, not target-controller timing measurements.
+
+\section{Full three-dimensional flux maps}
+\subsection{What retaining excitation removes, and what it does not}
+A full representation uses
+\begin{equation}
+\widehat{\ps}=\widehat{\bm F}(i_d,i_q,i_e).
+\end{equation}
+It does not require excitation sensitivity to lie in one constant compensable direction, or even in a common constant two-axis direction. It still approximates an empirical current-only relation; temperature variation, magnetic history and measurement distortion do not disappear by adding the excitation axis.
+
+A regular-grid lookup uses eight surrounding corners per component for trilinear interpolation, rather than four for a bilinear two-coordinate table. This corner count is not a hardware execution-time measurement. The measured support must still be respected; a rectangular array can contain unavailable nodes inside its bounding box.
+
+The stored full tables in the existing comparison contain $81\times81\times21=137781$ nodes, versus $81^2=6561$ for each reduced map. For two double-precision flux arrays, the value storage is
+\begin{align}
+B_{\rm 2D}&=2(81^2)(8)=104976\ {\rm bytes},\\
+B_{\rm 3D}&=2(81^2)(21)(8)=2204496\ {\rm bytes}.
+\end{align}
+These are approximately 0.105 and 2.20 decimal MB, before masks and axis vectors. Twenty-one excitation grid nodes do not imply twenty-one independent measured excitation groups. They are storage locations sampled from the scattered field.
+
+\subsection{What the archived prediction results show}
+An existing whole-group prediction investigation removed each nominal excitation group in turn, refitted its model from the remaining groups, and assessed the omitted group. For fitted coordinate models, training contained smaller inner-group queries with a fixed missing-prediction penalty; the full three-current representation used the corresponding training measurements. The numerical choices and candidate hierarchy were fixed within that investigation. Its results are reused here without rerunning that campaign.
+
+Table~\ref{tab:archive-prediction} selects the conventional scalar, jointly fitted scalar, two-axis and full three-current results on the same interior prediction points. The two-axis coefficients and fitting objective in this archived comparison differ from the recent fixed-population reconstruction refinement.
+\begin{table}[htbp]\centering\small
+\caption{Archived common-support interior whole-group prediction. Joint RMSE in mVs. Each column uses one common physical prediction population across the complete archived comparison, not a mask selected for one displayed pair.}\label{tab:archive-prediction}
+\begin{tabular}{lrrr}
+\toprule
+Representation & Set 1 & Set 2 & Set 3\\
+\midrule
+Conventional scalar & 5.998 & 6.309 & 6.970\\
+Jointly fitted scalar & 5.518 & 5.736 & 6.996\\
+Two global axis factors & 5.490 & 5.653 & 6.529\\
+Full three-current map & 1.787 & 1.780 & 1.480\\
+\midrule
+Common prediction points & 5659 & 6175 & 6592\\
+Eligible interior points & 6348 & 6936 & 7264\\
+\bottomrule
+\end{tabular}
+\end{table}
+Interior means that a nominal excitation group has retained groups on both sides. Pooled errors sum squared point errors before taking a square root; they are not arithmetic means of per-group RMSE. Boundary excitation groups have a different support problem and are not silently included.
+
+The full representation is substantially more accurate on these supported points, but this is not a storage-matched comparison and does not identify a physical irreducible error floor. The full table is larger, its interpolation geometry differs, and all models use uncertain source measurements. When a boundary group is removed, a full three-current query can lose all support because the remaining excitation range no longer surrounds it. Reduced coordinates can remain numerically supported even then, but that is not a general guarantee of excitation extrapolation.
+
+Existing grid-resolution and coordinate-scaling controls confirm numerical sensitivity. Consequently, neither the gain from a full table nor the difference between two RMSE values can be assigned exclusively to structural reduction error. Retaining excitation is a meaningful reference and a practical option when memory permits; it is not exact ground truth.
+
+\section{Auxiliary computation and reduced online workload}
+\subsection{Identify the actual dependencies before caching}
+A larger map might be evaluated outside the fastest current-control update while retaining fast PI feedback and voltage limiting. This is an architectural possibility, not a measured real-time improvement in the present evidence.
+
+The relevant input vector must be traced through the chosen operating mode. In the richer inspected controller, normal lookup coordinates use requested stator and excitation currents, whereas a mode selection can substitute internal measured stator currents. The simpler available structure also constructs its coordinates from references. These examples do not prove that every lookup in every mode depends exclusively on unchanged references.
+
+Even if flux lookup inputs remain constant, rotational feedforward $\omega_e J\widehat{\ps}$ changes when speed changes. Resistance feedforward can change with temperature or its resistance estimate. Gain calculations can depend on resistance, dynamics factors and multiplicative settings. One must distinguish caching a map value from caching an entire voltage command or controller state.
+
+\subsection{A conditional bound for stale map values}
+Let $\bm\xi(t)$ denote all inputs of a flux lookup, and suppose the last evaluation occurred at $t_k$. If the map is locally Lipschitz with bound $M$ over the intervening supported region,
+\begin{equation}
+\norm{\widehat{\ps}(\bm\xi(t))-\widehat{\ps}(\bm\xi(t_k))}
+\le M\norm{\bm\xi(t)-\bm\xi(t_k)}.
+\end{equation}
+If additionally $\norm{\dot{\bm\xi}}\le v_{\max}$, integration gives
+\begin{equation}
+\norm{\Delta\ps_{\rm stale}(t)}
+\le M v_{\max}(t-t_k).
+\end{equation}
+At identical actual speed, the associated rotational voltage error is bounded by
+\begin{equation}
+\norm{\Delta\bm u_{\rm stale}(t)}
+\le|\omega_e(t)|M v_{\max}(t-t_k).
+\end{equation}
+The assumptions matter: no jump in reference, valid support throughout, and a usable slope bound are required. A lookup crossing a missing cell or a reference step is not covered by this smooth-input bound. High speed tightens any allowed flux-value age for a given voltage-error requirement.
+
+For reduced coordinates, the input change already includes excitation:
+\begin{equation}
+\dot s_d=\dot i_d+k_d\dot i_e,\qquad
+\dot s_q=\dot i_q+k_q\dot i_e.
+\end{equation}
+Detecting only stator-reference changes would miss a changing excitation reference. A nonlinear coordinate map would require its complete chain rule.
+
+\subsection{Scheduling, consistency and limits}
+An auxiliary evaluator would need a defined update period or event threshold, a maximum result age, a consistent input snapshot and an atomic transfer of both flux components. Derivatives or inductances used together should correspond to the same inputs and table version. Otherwise an apparently faster architecture can introduce incoherent feedforward and tuning data.
+
+The fast loop would still use current measurements, update PI states, calculate instantaneous speed-dependent terms and enforce voltage constraints. A stale lookup is a delayed feedforward contribution; it does not justify slowing feedback. Finite-difference derivative feedforward additionally needs a time base consistent with the held values. Simply reusing an old flux while differentiating a new reference can create a mismatch.
+
+Worst-case execution time, scheduling jitter, memory access, data-transfer overhead and behavior during support loss would have to be measured on the actual target. No such real-time benchmark is available. A larger full map with a slower auxiliary lookup is therefore a candidate architecture whose accuracy-delay-cost trade-off remains open, rather than an established practical improvement.
+
+\section{Further possibilities and the boundaries of this evidence}
+A current-dependent coefficient introduces extra derivatives. If $s=i_d+i_ek(\bm i)$,
+\begin{equation}
+\dot s=
+(1+i_ek_{i_d})\dot i_d+
+i_ek_{i_q}\dot i_q+
+(k+i_ek_{i_e})\dot i_e.
+\end{equation}
+Using the coefficient itself as a differential compensation slope would omit these terms. If a differential factor depends only on excitation, an accumulated shift instead satisfies
+\begin{equation}
+a(i_e)=\int_0^{i_e}k_{\rm diff}(\xi)\,\dd\xi.
+\end{equation}
+In general $a(i_e)\ne i_e k_{\rm diff}(i_e)$. More flexibility also raises inverse, regularization, support and identification questions; it does not turn target-informed pointwise factors into independently validated online functions.
+
+Nonlinear coordinates, coefficient models, radial-basis representations and splines can change approximation and storage properties. Choosing a different basis is separate from choosing the input dimension. A flexible three-current fit does not prove that a two-coordinate reduction exists, and a flexible two-coordinate fit cannot represent two different flux pairs at exactly the same input. Preparatory work on such representations does not provide the missing comprehensive comparison here.
+
+An energy-consistent representation could impose additional integrability and physical structure under appropriate assumptions. The present evidence does not independently identify the excitation flux and all associated derivatives needed for a complete three-current magnetic-energy model. These possibilities remain an outlook, not additional demonstrated solutions.
 \FloatBarrier

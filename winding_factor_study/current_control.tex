@@ -1,0 +1,395 @@
+\chapter{Implications for Current Control}\label{ch:control}
+
+The practical question is not whether a reduced flux map reproduces every measured flux value exactly. It is how the remaining error enters the voltage command, how feedback responds, and when the available voltage prevents that response. Answering this question requires three distinct objects: the physical machine, the mathematical model used for controller design, and the particular controller structure. Their equations can resemble one another while their assumptions differ substantially.
+
+The available controller implementations provide concrete examples of PI feedback, map-based feedforward, and different treatments of voltage limits. They do not establish which parameter settings and operating modes were active during the three measurement campaigns. Consequently, the implementation properties discussed below are verified properties of available structures, whereas their activation in an individual experiment remains unverified. No measured closed-loop performance is inferred from the reconstruction errors alone.
+
+\section{From flux maps to dynamic machine equations}
+
+Let $\bm i_s=(i_d,i_q)^{\mathsf T}$, $\bm u=(u_d,u_q)^{\mathsf T}$, and introduce the rotation matrix
+\begin{equation}
+ \bm J=\begin{bmatrix}0&-1\\1&0\end{bmatrix}.
+\end{equation}
+Its action is a quarter turn: $\bm J\bm\psi=(-\psi_q,\psi_d)^{\mathsf T}$. With the adopted electrical-angle convention, the voltage equations become
+\begin{equation}
+ \bm u=R_s\bm i_s+\frac{\mathrm d\bm\psi}{\mathrm dt}
+             +\omega_e\bm J\bm\psi.
+ \label{eq:control-voltage-vector}
+\end{equation}
+The three terms describe resistive voltage, the voltage needed to change flux, and the voltage associated with rotation of the flux vector. The rotational term exists even when all three currents are constant.
+
+For a differentiable quasistatic flux map $\bm\psi(i_d,i_q,i_e)$, the chain rule gives
+\begin{align}
+ \dot\psi_d&=L_{dd}\dot i_d+L_{dq}\dot i_q+L_{de}\dot i_e,\\
+ \dot\psi_q&=L_{qd}\dot i_d+L_{qq}\dot i_q+L_{qe}\dot i_e.
+ \label{eq:control-chain-components}
+\end{align}
+Here every derivative is evaluated at the instantaneous operating point. In matrix form, define
+\begin{equation}
+ \bm L_s=\begin{bmatrix}L_{dd}&L_{dq}\\L_{qd}&L_{qq}\end{bmatrix},
+ \qquad
+ \bm\ell_e=\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}.
+\end{equation}
+Substitution into the voltage equations yields
+\begin{align}
+ u_d&=R_si_d+L_{dd}\dot i_d+L_{dq}\dot i_q
+                 +L_{de}\dot i_e-\omega_e\psi_q,\\
+ u_q&=R_si_q+L_{qd}\dot i_d+L_{qq}\dot i_q
+                 +L_{qe}\dot i_e+\omega_e\psi_d.
+ \label{eq:control-full-components}
+\end{align}
+Thus a changing excitation current disturbs both stator axes, including at zero speed. A controller that compensates only rotational voltage does not cancel this excitation-induced transient.
+
+The differential inductances in these equations must not be replaced indiscriminately by secant inductances. For example, if $\psi_d=L_0i_d+c i_d^3$ along a fixed slice, then $\psi_d/i_d=L_0+c i_d^2$, whereas $\partial\psi_d/\partial i_d=L_0+3c i_d^2$. The first ratio describes a finite relation to an arbitrarily chosen origin; the derivative describes the incremental voltage required to change current. With excitation present, $\psi_d/i_d$ can additionally include an excitation offset and becomes singular at $i_d=0$ even when the differential inductance is regular.
+
+If $\det\bm L_s\ne0$, the nonlinear stator-current dynamics can be written exactly within this quasistatic map model as
+\begin{equation}
+ \dot{\bm i_s}=\bm L_s^{-1}
+ \left(\bm u-R_s\bm i_s-\omega_e\bm J\bm\psi
+                    -\bm\ell_e\dot i_e\right).
+ \label{eq:control-nonlinear-inverse}
+\end{equation}
+This is not yet a linear control plant: both the inverse matrix and the flux vector depend on the currents. Moreover, mathematical invertibility alone is insufficient for robust numerical inversion. A nearly singular matrix amplifies flux-derivative errors and voltage uncertainty. Cross-saturation matters through the determinant $L_{dd}L_{qq}-L_{dq}L_{qd}$ and through the directions of its singular vectors, not merely through the size of either diagonal entry.
+
+The model assumes that the flux map captures the relevant magnetic state. Hysteresis, eddy-current dynamics, and temperature-dependent changes require additional states or dependencies if they are significant. Reciprocity, $L_{dq}=L_{qd}$, follows from an appropriate smooth magnetic coenergy model under its assumptions; it should not be imposed as an experimentally established identity on independently interpolated noisy maps.
+
+\section{The local current-control plant}
+
+To obtain a tractable linear model, consider a steady operating point $(\bm i_{s0},i_{e0},\omega_{e0})$. Use $\delta$ for a small perturbation about that point, and freeze the differential inductances at their local values. To first order,
+\begin{equation}
+ \delta\bm\psi=\bm L_0\delta\bm i_s+
+                         \bm\ell_{e0}\delta i_e.
+\end{equation}
+Because the reference operating point is steady, differentiation gives $\delta\dot{\bm\psi}=\bm L_0\delta\dot{\bm i_s}+\bm\ell_{e0}\delta\dot i_e$. Linearizing the rotational product also gives
+\begin{equation}
+ \delta(\omega_e\bm J\bm\psi)
+ =\omega_{e0}\bm J\delta\bm\psi
+   +\bm J\bm\psi_0\delta\omega_e.
+\end{equation}
+Neglecting resistance variation within this local calculation, substitution produces
+\begin{align}
+ \bm L_0\delta\dot{\bm i_s}
+ +(R_s\bm I+\omega_{e0}\bm J\bm L_0)\delta\bm i_s
+ ={}&\delta\bm u-\bm\ell_{e0}\delta\dot i_e\nonumber\\
+ &-\omega_{e0}\bm J\bm\ell_{e0}\delta i_e
+ -\bm J\bm\psi_0\delta\omega_e.
+ \label{eq:control-local-state}
+\end{align}
+An excitation change therefore has both a derivative contribution and a speed-dependent contribution. A speed change couples through the existing flux even if the currents have not yet changed.
+
+Within transfer functions in this chapter, $s$ denotes the Laplace variable, not the reduced current coordinate of earlier chapters. With zero initial perturbations, Laplace transformation gives
+\begin{align}
+ \bm M(s)\delta\bm i_s(s)
+ ={}&\delta\bm u(s)
+ -(s\bm I+\omega_{e0}\bm J)\bm\ell_{e0}\delta i_e(s)
+ \nonumber\\
+ &-\bm J\bm\psi_0\delta\omega_e(s),\\
+ \bm M(s)&=s\bm L_0+R_s\bm I+\omega_{e0}\bm J\bm L_0.
+ \label{eq:control-matrix-plant}
+\end{align}
+Writing $\bm M=\left[\begin{smallmatrix}a&b\\c&d\end{smallmatrix}\right]$ makes the cross-coupling explicit:
+\begin{align}
+ a&=R_s+sL_{dd}-\omega_{e0}L_{qd},&
+ b&=sL_{dq}-\omega_{e0}L_{qq},\\
+ c&=sL_{qd}+\omega_{e0}L_{dd},&
+ d&=R_s+sL_{qq}+\omega_{e0}L_{dq}.
+\end{align}
+Where its determinant is nonzero, the voltage-to-current transfer matrix is
+\begin{equation}
+ \bm G(s)=\bm M(s)^{-1}
+ =\frac{1}{ad-bc}\begin{bmatrix}d&-b\\-c&a\end{bmatrix}.
+ \label{eq:control-transfer-inverse}
+\end{equation}
+This expression shows why two independently tuned scalar loops are an approximation: a voltage perturbation on one axis generally produces current changes on both axes.
+
+At standstill with negligible cross derivatives, or after ideal cancellation of the relevant couplings, one axis reduces to
+\begin{equation}
+ L\dot i+R_si=v,
+ \qquad G(s)=\frac{1}{Ls+R_s}
+ =\frac{1/R_s}{1+sL/R_s}.
+ \label{eq:control-rl}
+\end{equation}
+The time constant $T_e=L/R_s$ then has a direct physical meaning: inductance resists current change, while resistance dissipates magnetic energy. For a coupled passive local model at zero speed, the corresponding modes depend on the eigenvalues of $\bm L_0$, rather than separately on its diagonal entries.
+
+There is an additional distinction between measured-state decoupling and reference-based feedforward. If $\omega_e\bm J\bm\psi(\bm i_s,i_e)$ is evaluated at the actual state and canceled exactly, its local state-dependent contribution disappears from the plant seen by feedback. If the map is evaluated at current references, it predicts the voltage of the desired operating point. During tracking errors, the actual rotational voltage still depends on the actual currents. The scalar RL model is therefore a design approximation in that situation, not an exact consequence of adding a feedforward term.
+
+The frozen linearization is also local in time. Along a changing operating trajectory, variations of $\bm L_s$ multiply the nonzero nominal current derivative. Those additional terms cannot be discarded merely because the current perturbation itself is small.
+
+\section{What a PI regulator does}
+
+For one axis define $e=i^\star-i$, where $i^\star$ is the current reference. An ideal continuous PI regulator has
+\begin{equation}
+ u_{\mathrm{PI}}=K_pe+x,
+ \qquad \dot x=K_ie,
+ \qquad C(s)=K_p+\frac{K_i}{s}.
+ \label{eq:control-pi}
+\end{equation}
+The proportional term reacts immediately to the present error. The integral state accumulates error over time and can maintain a nonzero compensating voltage after the current error has vanished. Its units are voltage; $K_p$ has units of voltage per current and $K_i$ of voltage per current per second.
+
+To isolate these effects, let $w$ be an additive voltage disturbance on the right-hand side of the RL equation, so that $i=G(C(i^\star-i)+w)$. Collecting the terms involving $i$ gives
+\begin{equation}
+ (1+GC)i=GCi^\star+Gw,
+\end{equation}
+and hence
+\begin{equation}
+ i=\frac{GC}{1+GC}i^\star+\frac{G}{1+GC}w.
+ \label{eq:control-reference-disturbance}
+\end{equation}
+For the RL plant, the two transfer functions are
+\begin{align}
+ \frac{i}{i^\star}&=
+ \frac{K_ps+K_i}{Ls^2+(R_s+K_p)s+K_i},\\
+ \frac{i}{w}&=
+ \frac{s}{Ls^2+(R_s+K_p)s+K_i}.
+ \label{eq:control-closed-rl}
+\end{align}
+At zero frequency the first tends to one and the second to zero. For a stable loop with sufficient voltage, a constant reference and a constant voltage disturbance can therefore be tracked and rejected with zero steady current error. In that equilibrium the integral state supplies the missing voltage.
+
+The conclusion is conditional. The final-value argument requires stability; saturation can prevent the commanded voltage from being applied; sensor bias changes the meaning of zero measured error; and time-varying disturbances contain frequencies at which rejection is incomplete. A PI regulator does not erase every error instantly. Increasing its gains indefinitely is also impossible because computation, sampling, modulation, and measurement introduce phase lag.
+
+For the coupled plant, the same algebra must preserve matrix order. With a diagonal or full controller $\bm C(s)$,
+\begin{equation}
+ \delta\bm i_s=(\bm I+\bm G\bm C)^{-1}\bm G\bm C\,
+                \delta\bm i_s^\star
+ + (\bm I+\bm G\bm C)^{-1}\bm G\bm w.
+ \label{eq:control-matrix-feedback}
+\end{equation}
+This is the appropriate starting point when cross-coupling remains significant. Scalar formulas are useful for understanding each mechanism, but they do not prove stability of the full nonlinear saturated system.
+
+\subsection{An ideal magnitude-optimum derivation}
+
+An instructive design model appends one small first-order lag to the RL plant:
+\begin{equation}
+ G_a(s)=\frac{1}{(Ls+R_s)(1+\tau_\Sigma s)}.
+\end{equation}
+The parameter $\tau_\Sigma>0$ represents an aggregated small lag. Approximating an actual pure delay by this first-order element is justified only over a restricted frequency range. It does not give an exact sampled-data representation of PWM and computation.
+
+Choose the PI zero to cancel the electrical pole:
+\begin{equation}
+ T_i=\frac{K_p}{K_i}=\frac{L}{R_s},
+ \qquad
+ C(s)=K_p\frac{s+R_s/L}{s}.
+\end{equation}
+After cancellation,
+\begin{equation}
+ C(s)G_a(s)=\frac{K_p/L}{s(1+\tau_\Sigma s)}.
+\end{equation}
+Set $a=K_p/L$. The closed reference response becomes
+\begin{equation}
+ T(s)=\frac{a}{\tau_\Sigma s^2+s+a}.
+\end{equation}
+To see the magnitude criterion rather than simply quote its gains, evaluate the inverse squared magnitude at angular frequency $\Omega$:
+\begin{align}
+ |T(\mathrm j\Omega)|^{-2}
+ &=\left(1-\frac{\tau_\Sigma}{a}\Omega^2\right)^2
+                    +\frac{\Omega^2}{a^2}\nonumber\\
+ &=1+\left(\frac{1}{a^2}-\frac{2\tau_\Sigma}{a}\right)\Omega^2
+                    +\frac{\tau_\Sigma^2}{a^2}\Omega^4.
+\end{align}
+Canceling the quadratic term makes the response maximally flat through this order near zero frequency. Therefore $1-2\tau_\Sigma a=0$, giving
+\begin{equation}
+ K_p=\frac{L}{2\tau_\Sigma},
+ \qquad K_i=\frac{R_s}{2\tau_\Sigma},
+ \qquad
+ T(s)=\frac{1}{1+2\tau_\Sigma s+2\tau_\Sigma^2s^2}.
+ \label{eq:control-ideal-magnitude}
+\end{equation}
+The resulting second-order damping ratio is $1/\sqrt{2}$. This calculation explains both the pole-zero cancellation and the role of delay in limiting gain. It assumes known positive $L$ and $R_s$, effective decoupling, unity actuator gain, a single small lag, and no saturation. Neither the optimum nor its stability guarantees automatically survive violations of those assumptions.
+
+\subsection{Verified structures and the limits of their interpretation}
+
+One available synchronous-machine controller uses local diagonal inductance values and a positive configurable dynamics factor $\gamma$. Before additional multiplicative gain adjustments, its gain calculation is
+\begin{equation}
+ K_{p,d}=\frac{L_{dd}}{8\gamma T_{\mathrm{PWM}}},
+ \quad K_{p,q}=\frac{L_{qq}}{8\gamma T_{\mathrm{PWM}}},
+ \quad K_{i,d}=K_{i,q}=\frac{R_s}{4\gamma T_{\mathrm{PWM}}}.
+ \label{eq:control-inspected-gains}
+\end{equation}
+Consequently, its nominal ratios are
+\begin{equation}
+ \frac{K_{p,d}}{K_{i,d}}=\frac{L_{dd}}{2R_s},
+ \qquad
+ \frac{K_{p,q}}{K_{i,q}}=\frac{L_{qq}}{2R_s}.
+\end{equation}
+They differ from the electrical time constants used for exact cancellation in the preceding derivation. Independent gain adjustments can change these ratios further. It would therefore be incorrect to identify this synchronous branch with the ideal magnitude-optimum calculation solely because it contains inductance, resistance, and a switching period. A separate machine-type branch uses a delay estimate of $2.5T_{\mathrm{PWM}}$ and a different gain formula; that branch does not establish the synchronous-machine tuning.
+
+A second, simpler available structure uses $K_{p,d}=L_{dd}/(2T_{\mathrm{PWM}})$ and $K_{i,d}=R_s/(2T_{\mathrm{PWM}})$, with analogous q-axis gains. Its nominal gain ratio does equal $L_{dd}/R_s$. Its discrete integral update adds $K_iT_{\mathrm{PWM}}e$ and its output adds proportional, integral, and rotational feedforward voltages. The inspected control path does not contain the voltage allocator and back-calculation path described below. This simpler structure illustrates why features from different available implementations must not be combined into an imaginary single controller. Its gain formula alone also does not verify an aggregate physical delay equal to the switching period.
+
+\section{Flux feedforward and the meaning of a flux error}
+
+Feedforward predicts a voltage before an error has accumulated. For a desired current operating point, a stationary prediction is
+\begin{equation}
+ \bm u_{\mathrm{ff}}=
+ \widehat R_s\bm i_s^\star+
+ \omega_e\bm J\widehat{\bm\psi}(\bm i_s^\star,i_e^\star).
+ \label{eq:control-stationary-ff}
+\end{equation}
+The richer inspected controller includes these resistive and rotational terms, together with switchable differential feedforward. Its normal map inputs are requested d-axis, q-axis, and excitation currents. An emulator-related selection substitutes internal measured d/q currents for the stator references. The excitation coordinate remains a requested current in the inspected path. Thus the map arguments are mode-dependent.
+
+The switchable differential terms use diagonal inductances and finite differences of lookup coordinates. In the reduced d coordinate this includes the change of $i_d^\star+ki_e^\star$. Such a calculation is a particular approximation to the flux derivative; it is not a verified implementation of every cross derivative in Equation~\eqref{eq:control-full-components}. The simpler structure described above adds only rotational flux feedforward in its inspected control path.
+
+Define the model error at identical current arguments by
+\begin{equation}
+ \Delta\bm\psi(\bm i_s,i_e)=
+ \widehat{\bm\psi}(\bm i_s,i_e)-\bm\psi(\bm i_s,i_e).
+ \label{eq:control-error-sign}
+\end{equation}
+This sign convention is essential: $\Delta\bm\psi$ is model minus true flux. For rotational feedforward at the same electrical speed,
+\begin{equation}
+ \Delta\bm u_{\mathrm{rot}}=\omega_e\bm J\Delta\bm\psi,
+ \qquad
+ \Delta u_d=-\omega_e\Delta\psi_q,
+ \quad \Delta u_q=\omega_e\Delta\psi_d.
+ \label{eq:control-flux-voltage-error}
+\end{equation}
+Because $\bm J$ preserves Euclidean length,
+\begin{equation}
+ \norm{\Delta\bm u_{\mathrm{rot}}}
+ =|\omega_e|\norm{\Delta\bm\psi}.
+\end{equation}
+A flux error measured in volt-seconds therefore produces a voltage error proportional to electrical speed. This is a statement about feedforward voltage, not a direct equality between flux error and current error.
+
+If speed is also estimated incorrectly, with $\widehat\omega_e=\omega_e+\Delta\omega_e$, then
+\begin{equation}
+ \widehat\omega_e\bm J\widehat{\bm\psi}
+ -\omega_e\bm J\bm\psi
+ =\omega_e\bm J\Delta\bm\psi
+ +\Delta\omega_e\bm J\bm\psi
+ +\Delta\omega_e\bm J\Delta\bm\psi.
+\end{equation}
+The first-order approximation drops only the final product. A large true flux can therefore make even a modest speed error relevant independently of map reconstruction error.
+
+For a hypothetical full trajectory feedforward that also includes $\mathrm d\widehat{\bm\psi}/\mathrm dt$, compare modeled and true voltages along the same current trajectory. At identical speed,
+\begin{equation}
+ \Delta\bm u_{\mathrm{full}}
+ =\Delta R_s\bm i_s+
+ \frac{\mathrm d\Delta\bm\psi}{\mathrm dt}
+ +\omega_e\bm J\Delta\bm\psi.
+ \label{eq:control-full-feedforward-error}
+\end{equation}
+Componentwise,
+\begin{align}
+ \Delta u_d&=\Delta R_si_d+\dot{\Delta\psi}_d
+                                  -\omega_e\Delta\psi_q,\\
+ \Delta u_q&=\Delta R_si_q+\dot{\Delta\psi}_q
+                                  +\omega_e\Delta\psi_d.
+\end{align}
+This derivative term belongs to the comparison of full dynamic voltage predictions. It must not be attributed to a controller that implements only rotational feedforward. In such a controller, unmodeled flux-derivative effects remain part of the plant and the voltage demand to be supplied by feedback.
+
+If both maps are smooth, the derivative of their difference is
+\begin{equation}
+ \dot{\Delta\bm\psi}=
+ \Delta\bm L_s\dot{\bm i_s}+\Delta\bm\ell_e\dot i_e.
+ \label{eq:control-derivative-error}
+\end{equation}
+A small pointwise flux error does not necessarily imply small derivative error. Interpolation can reproduce values closely while changing slopes, particularly near sparse support or cell boundaries. Conversely, a constant flux offset has zero derivative error but still produces a speed-dependent rotational voltage error.
+
+When feedforward uses reference currents, its total mismatch also contains tracking mismatch:
+\begin{align}
+ \widehat{\bm\psi}(\bm i_s^\star,i_e^\star)-\bm\psi(\bm i_s,i_e)
+ ={}&\Delta\bm\psi(\bm i_s^\star,i_e^\star)\nonumber\\
+ &+\bm\psi(\bm i_s^\star,i_e^\star)-\bm\psi(\bm i_s,i_e).
+\end{align}
+Only the first term is the map error at common arguments. To first order the second is $\bm L_s(\bm i_s^\star-\bm i_s)+\bm\ell_e(i_e^\star-i_e)$. This distinction prevents ordinary tracking transients, including excitation-current lag, from being misidentified as reconstruction error.
+
+\subsection{Connecting coordinate-factor error to voltage sensitivity}
+
+To isolate the effect of an erroneous scalar factor, consider a deliberately restricted comparison: keep a differentiable reduced map $\bm F$ fixed and change only its coordinate factor from $k_0$ to $k_0+\delta k$. At the same physical currents, let $s_0=i_d+k_0i_e$. Taylor expansion in the coordinate displacement gives
+\begin{align}
+ \bm F(s_0+\delta k\,i_e,i_q)-\bm F(s_0,i_q)
+ &=\bm F_s(s_0,i_q)\,i_e\delta k
+       +O((i_e\delta k)^2).
+ \label{eq:control-k-flux-sensitivity}
+\end{align}
+The vector $\bm F_s$ contains the sensitivities of both flux components to the reduced d coordinate. At first order, rotational voltage sensitivity follows immediately:
+\begin{equation}
+ \Delta\bm u_{\mathrm{rot}}
+ \simeq\omega_e\bm J\bm F_s\,i_e\delta k.
+\end{equation}
+Thus speed, excitation current, local map slope, and factor error enter together. A single percentage difference between two factors does not determine the voltage consequence across an operating region.
+
+For constant $k_0$ and constant $\delta k$, differentiation of the first-order flux error along a trajectory gives
+\begin{align}
+ \frac{\mathrm d\Delta\bm\psi}{\mathrm dt}
+ \simeq\delta k\left[
+ \bm F_s\dot i_e+
+ i_e\left(\bm F_{ss}(\dot i_d+k_0\dot i_e)
+                    +\bm F_{sq}\dot i_q\right)\right].
+ \label{eq:control-k-transient-sensitivity}
+\end{align}
+Even a constant factor error can therefore produce a time-varying voltage mismatch when the currents change. The first term concerns excitation-current change directly; the others concern changing sensitivity along the map. This is a local smooth-map explanation, not a calculation of the actual experimental transient.
+
+The comparison deliberately holds $\bm F$ fixed. Rebuilding a common reduced map after changing $k$ also changes its fitted values, support, and interpolation geometry. The resulting reconstruction difference cannot generally be attributed to Equation~\eqref{eq:control-k-flux-sensitivity} alone. Nor does this argument assume that the true machine possesses an exact scalar reduction: any irreducible map discrepancy remains an additional error. This distinction connects the diagnostic factor studies to control sensitivity without treating a fitted factor as an independently known physical constant.
+
+\section{How feedback responds to imperfect feedforward}
+
+Suppose that the ideal stationary feedforward is $\bm u_0$ and the model supplies $\bm u_0+\Delta\bm u_{\mathrm{ff}}$. With sufficient voltage and a stable PI loop, a possible steady equilibrium is
+\begin{equation}
+ \bm e=\bm0,
+ \qquad \bm x=-\Delta\bm u_{\mathrm{ff}}.
+\end{equation}
+Thus nonzero feedforward error can coexist with accurate current tracking. The controller must build the compensating integral voltage during the approach to equilibrium, and that approach can include current deviations.
+
+For the scalar unsaturated RL approximation with a constant reference, Equation~\eqref{eq:control-closed-rl} gives
+\begin{equation}
+ \delta i(s)=
+ \frac{s}{Ls^2+(R_s+K_p)s+K_i}\,
+                \Delta u_{\mathrm{ff}}(s).
+ \label{eq:control-flux-to-current}
+\end{equation}
+The current response depends on the disturbance spectrum, the plant, and the controller gains. A static flux-error percentage cannot be converted into a current-error percentage without these additional quantities. At frequencies below the effective integral-control bandwidth, rejection is strong; closer to the bandwidth, phase lag and coupling matter; beyond it, the feedback cannot follow rapid changes effectively.
+
+This also separates two roles of reduced maps. Errors in $\bm\psi$ change predicted rotational voltage. Errors in its derivatives can change the true incremental plant relative to the design model and can also change scheduled gains if those derivatives are used for tuning. Feedforward error alone is an additive disturbance in the simplest analysis; model-dependent gain scheduling introduces an additional feedback-dynamics issue. Neither mechanism, by itself, proves that an observed oscillation was caused by a particular coordinate factor.
+
+\section{Voltage limitation and anti-windup}
+
+An inverter has finite voltage capability determined by its DC supply, modulation, and operating conditions. A useful circular approximation is
+\begin{equation}
+ u_d^2+u_q^2\le U_{\max}^2.
+ \label{eq:control-voltage-circle}
+\end{equation}
+The precise conversion from DC voltage to $U_{\max}$ depends on modulation and scaling conventions. The circle is therefore an explicit actuator model, not a universal identity for every modulation regime.
+
+At a specified feedforward voltage, the feasible PI correction set is
+\begin{equation}
+ \left\{\bm v:\norm{\bm u_{\mathrm{ff}}+\bm v}\le U_{\max}\right\}.
+ \label{eq:control-correction-set}
+\end{equation}
+It is a disk centered at $-\bm u_{\mathrm{ff}}$ in PI-voltage coordinates. Its shape makes direction important: the scalar margin $U_{\max}-\norm{\bm u_{\mathrm{ff}}}$ does not describe every possible correction equally. Moreover, if feedback compensates a map error exactly, the final total voltage is the physical voltage required by the machine. An erroneous feedforward does not necessarily increase that final physical requirement by its error norm. It can nevertheless alter transient commands and the allocation of limited voltage between feedforward and feedback.
+
+The richer inspected limiter confirms a specific allocation order. It first reserves q-axis open-loop voltage, then d-axis open-loop voltage, then d-axis closed-loop voltage, and finally q-axis closed-loop voltage. A separate angular-control contribution receives the remaining capability with its own vector treatment. There is consequently a preference for d-axis feedback over q-axis feedback after the feedforward allocation. Describing the whole algorithm as a simple unconditional preference for d-axis total voltage would omit its first priority.
+
+For example, after limiting the q-axis feedforward to the available magnitude, the algorithm computes the residual d-axis magnitude as
+\begin{equation}
+ U_{d,\mathrm{rem}}=
+ \sqrt{U_{\max}^2-u_{q,\mathrm{ff,lim}}^2}.
+\end{equation}
+It allocates d-axis feedforward within that residual, subtracts its absolute magnitude to form a conservative d-axis PI allowance, and then determines the q-axis PI interval from the circle and the already allocated components. This is a component allocation procedure; it need not coincide with radial projection of the total requested voltage. The chosen priorities explain why a q-flux or d-flux error can have different practical consequences even when their Euclidean magnitudes are equal.
+
+Saturation also changes integral control. Without anti-windup, a persistent error continues to increase $x$ even when further voltage cannot be applied. The stored integral then delays recovery after the command returns to a feasible region. A conventional back-calculation description is
+\begin{equation}
+ \dot x=K_ie+K_{\mathrm{aw}}(u_{\mathrm{lim}}-u_{\mathrm{req}}).
+ \label{eq:control-aw-generic}
+\end{equation}
+The second term drives the integral toward a value consistent with the applied voltage.
+
+The richer inspected PI path forms the difference between requested and limited sums of feedforward and PI voltage, delays that difference by one update, and subtracts it from the integral input with gain $K_i/K_p$. With enabled control, constant step size $T_s$, and the nominal accumulator scaling, its essential structure can be expressed as
+\begin{align}
+ r_j[n]&=u_{j,\mathrm{req}}[n]-u_{j,\mathrm{lim}}[n],\\
+ x_j[n]&=x_j[n-1]+T_s\left(
+ K_{i,j}e_j[n]-\frac{K_{i,j}}{K_{p,j}}r_j[n-1]\right).
+ \label{eq:control-aw-inspected}
+\end{align}
+The residual here concerns the main feedforward-plus-PI allocation; additional angular-control contributions have separate paths. Enable logic, gain adjustments, and numerical fallback behavior supplement this core relation. It establishes delayed back-calculation in the available structure, but does not establish its exact active parameterization in the measurements. Anti-windup improves recovery from saturation; it does not create additional actuator voltage or guarantee accurate tracking of an infeasible reference.
+
+\section{Operating regions and practical consequences}
+
+At low electrical speed, rotational flux-error voltage is small. This does not make flux modeling irrelevant: differential-inductance error, excitation-current changes, resistance uncertainty, and reference steps can still dominate the voltage mismatch. At standstill, a controller that supplies only rotational feedforward relies on feedback for resistive and transient voltage.
+
+At high speed, the same flux error produces a larger rotational voltage error. Stable integral action may still remove the eventual current error, but the required compensation must develop through the closed loop and within the voltage limit. A claim of poor steady accuracy therefore requires evidence of saturation, instability, bias, or another limiting mechanism; speed scaling alone establishes increased voltage sensitivity.
+
+During current steps, the flux derivative and the difference between requested and measured currents become important. Ideal instantaneous current steps require unbounded inductive voltage, so every physical current change has a finite achievable slope. A reduced map can affect both the predicted transient voltage and local gain scheduling. Its suitability for transients cannot be judged from stationary reconstruction error alone.
+
+Near the voltage boundary, feedback has less freedom to correct a poorly predicted voltage. The verified allocation order can favor one correction over another, and anti-windup controls the evolution of the integral state during that restriction. The relevant comparison is consequently the direction and time history of the total voltage demand, not only the magnitude of the flux residual.
+
+Finally, lookup evaluation and voltage generation need not have identical update requirements. In the normal reference-based path, unchanged lookup coordinates permit reuse of already evaluated flux values, provided map parameters and modes are also unchanged. Measured-speed multiplication can still require a fast update. In an alternative mode where measured currents enter the lookup, unchanged references do not imply unchanged arguments. Scheduled inductances, differential feedforward, excitation changes, and input selection must likewise be considered. Moving map evaluation to a slower or auxiliary task introduces age and synchronization errors that require a separate timing analysis. The available mathematical and reconstruction results establish no measured improvement in execution time or closed-loop performance from such an architectural change.

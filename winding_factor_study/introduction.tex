@@ -1,0 +1,66 @@
+\chapter{Introduction and Motivation}\label{ch:introduction}
+
+\section{Why excitation is a third coordinate}
+In a rotating dq coordinate system, an electrically excited synchronous machine has two stator-current components and an independently supplied rotor excitation current. At a fixed thermal and magnetic state, a quasistatic description therefore has the form
+\begin{equation}\label{eq:full-map}
+\ps(\bm i)=
+\begin{bmatrix}\psi_d(i_d,i_q,i_e)\\\psi_q(i_d,i_q,i_e)\end{bmatrix},
+\qquad
+\bm i=\begin{bmatrix}i_d&i_q&i_e\end{bmatrix}^{\mathsf T}.
+\end{equation}
+Each current is a physical measured current in A. Each flux linkage is in Vs. Excitation changes the rotor magnetomotive force; saturation and cross-saturation can change the responses to all three currents. The number of output quantities does not determine the number of independent input coordinates required to describe them.
+
+Equation~\eqref{eq:full-map} is already a modeling assumption. A current-only map cannot separately represent temperature, hysteretic history, frequency-dependent magnetic effects or time-varying measurement errors. Throughout the mathematical development, these additional variables are either held fixed or absorbed into an empirical approximation. The measured data do not establish an exact memoryless constitutive law.
+
+For a permanent-magnet synchronous machine under fixed magnet conditions, there is no independently commanded excitation current corresponding to $i_e$. A two-stator-current description can then be natural. An electrically excited machine does not acquire this property merely because its excitation contribution can be represented approximately by a stator-current offset.
+
+\section{The attraction of a smaller table}
+Suppose each current axis is represented by $n$ grid nodes and two flux components are stored. A three-dimensional tensor table contains $2n^3$ flux values; a two-dimensional table contains $2n^2$. The count grows by a factor $n$ when the third axis has the same resolution. If its resolution is instead $n_e$, the factor is $n_e$. The actual interpolation work depends on the interpolation rule and data layout, not just on these counts.
+
+A common attempt to remove the excitation coordinate introduces
+\begin{equation}\label{eq:scalar-coordinate}
+s=i_d+k i_e,\qquad
+\widehat{\ps}(\bm i)=\widehat{\bm F}(s,i_q).
+\end{equation}
+The coefficient $k$ has units A/A: $k i_e$ must have the units of a stator-current coordinate. The hat denotes an approximation or an identified representation. Equation~\eqref{eq:scalar-coordinate} states that a single pair of flux functions should serve all supported excitation levels after their d-current coordinates have been shifted.
+
+There are two separate questions. First, can the measured fields approximately be represented in these two coordinates? Second, can a finite table, constructed and interpolated in those coordinates, preserve the required accuracy? An exact continuous reduction could still incur table-storage error. Conversely, a scattered interpolant can reproduce distinct training nodes without proving that a smooth, physically consistent reduction exists.
+
+\section{What a coordinate factor means}
+The product $k i_e$ is a coordinate offset, not an additional physical stator current flowing through the stator copper. In particular, physical resistive voltage remains $R_s i_d$, not $R_s s$. Excitation losses remain associated with the excitation circuit. The coefficient need not equal a winding distribution factor or a turns ratio.
+
+A turns ratio may motivate an approximate relation between magnetomotive forces in a simplified unsaturated magnetic model. An empirically identified coordinate coefficient additionally reflects which flux component is fitted, the current region, the sampling and interpolation rules, saturation, measurement errors and the optimization objective. Numerical agreement with a turns ratio would require independent physical evidence; it does not follow from the units A/A.
+
+Even exact stator-flux factorization does not make the complete machine equivalent to a permanent-magnet machine. For the usual three-phase amplitude-invariant convention, the electromagnetic torque identity is
+\begin{equation}\label{eq:torque-physical}
+T_e=\frac32p(\psi_d i_q-\psi_q i_d).
+\end{equation}
+If $\ps=\bm F(s,i_q)$ were exact, substitution of $i_d=s-k i_e$ would give
+\begin{align}
+T_e&=\frac32p\{F_d(s,i_q)i_q-F_q(s,i_q)(s-k i_e)\}\notag\\
+&=\frac32p\{F_d(s,i_q)i_q-F_q(s,i_q)s+k i_eF_q(s,i_q)\}.
+\end{align}
+The final excitation-dependent term cannot be removed by renaming the table axis. Equation~\eqref{eq:torque-physical} also depends on the dq scaling convention; it is not used here as an independent torque calibration.
+
+\section{Research question and order of argument}
+The central question is: under what conditions can the two stator flux linkages of an electrically excited synchronous machine be approximated by one common two-coordinate representation, and what limits the identification of those coordinates?
+
+Chapter~\ref{ch:contour} first defines the conventional contour statistic without changing it. Chapter~\ref{ch:mathematics} separates constant-flux differential relations from the movement of numerical contour averages, and derives exactness and identifiability conditions. Chapter~\ref{ch:measurement} then examines possible measurement and modeling errors. These analyses explain why a discrepancy can arise before any alternative fitting strategy is proposed.
+
+Chapter~\ref{ch:results} presents measured evidence and explicitly distinguishes reconstruction, omitted-group prediction and pointwise alignment against a fixed map. Chapter~\ref{ch:control} develops the consequences for current control. Only Chapter~\ref{ch:alternatives} considers alternative identification and representation strategies. Chapter~\ref{ch:conclusions} returns to what is established and what remains uncertain.
+
+\section{Notation and evidence}
+The first index of a differential inductance identifies the flux output and the second the varied current:
+\begin{equation}\label{eq:inductance-definition}
+L_{xy}=\frac{\partial\psi_x}{\partial i_y},
+\qquad x\in\{d,q\},\quad y\in\{d,q,e\}.
+\end{equation}
+These derivatives have units H. A differential inductance is a local slope, not generally a ratio $\psi_x/i_y$. Cross-derivatives are not silently set to zero or forced to be equal. Equality can follow from an appropriate energy description and consistent coordinates under additional assumptions; it is not imposed on separately estimated empirical fields.
+
+The following distinctions govern the interpretation:
+\begin{itemize}
+\item A mathematical identity is conditional on its stated regularity, support and domain assumptions.
+\item A numerical result belongs to its specified reference map, objective and evaluation population.
+\item A possible physical explanation is a hypothesis unless independent evidence identifies its contribution.
+\end{itemize}
+No complete uncertainty budget or controlled causal separation is available. Differences in flux error are therefore not partitioned into additive amounts of resistance error, temperature error, interpolation error and irreducible physical reduction error.

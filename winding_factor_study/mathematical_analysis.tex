@@ -1,0 +1,319 @@
+\chapter{Mathematical Analysis of the Conventional Method}\label{ch:mathematics}
+
+\section{Contour displacement and differential relations}
+\subsection{A partial derivative is not a contour trajectory}
+Assume first that $\psi_d$ is continuously differentiable on an open current domain. Changing only excitation while holding both stator currents fixed gives
+\begin{equation}
+\left.\frac{\partial\psi_d}{\partial i_e}\right|_{i_d,i_q}=L_{de}.
+\end{equation}
+This experiment generally changes d-flux. A constant-flux displacement asks a different question: how must other currents move to compensate that change?
+
+Parameterize a differentiable path by $\tau$, with currents $i_d(\tau),i_q(\tau),i_e(\tau)$. Applying the chain rule to the composite function gives
+\begin{equation}\label{eq:total-derivative}
+\frac{\dd\psi_d}{\dd\tau}
+=L_{dd}\frac{\dd i_d}{\dd\tau}
++L_{dq}\frac{\dd i_q}{\dd\tau}
++L_{de}\frac{\dd i_e}{\dd\tau}.
+\end{equation}
+The total derivative includes every input that changes along the path. A partial derivative is one special choice of path, with the other input derivatives zero.
+
+Suppose d-flux is constant, $\psi_d=\lambda$, and $\dd i_e/\dd\tau\ne0$ so that excitation itself can be used as a local path parameter. Divide~\eqref{eq:total-derivative} by $\dd i_e/\dd\tau$:
+\begin{align}
+0&=L_{dd}\frac{\dd i_d}{\dd i_e}
++L_{dq}\frac{\dd i_q}{\dd i_e}+L_{de},\\
+L_{dd}\frac{\dd i_d}{\dd i_e}
+&=-L_{de}-L_{dq}\frac{\dd i_q}{\dd i_e}.
+\end{align}
+If $L_{dd}\ne0$, division and reversal of the sign yield
+\begin{equation}\label{eq:contour-total-slope}
+\boxed{-\frac{\dd i_d}{\dd i_e}
+=\frac{L_{de}}{L_{dd}}
++\frac{L_{dq}}{L_{dd}}\frac{\dd i_q}{\dd i_e}.}
+\end{equation}
+The first term is excitation compensation by d-current at fixed q-current. The second is additional compensation for whatever change in d-flux is caused by the moving q-current. Cross-saturation enters through $L_{dq}$; a moving q-coordinate alone is not enough if this derivative vanishes.
+
+At fixed $i_q$, $\dd i_q/\dd i_e=0$, and
+\begin{equation}\label{eq:fixed-q-slope}
+-\left.\frac{\dd i_d}{\dd i_e}\right|_{\psi_d,i_q}
+=\frac{L_{de}}{L_{dd}}.
+\end{equation}
+The implicit-function theorem supplies a local solution for $i_d$ under the nonzero-$L_{dd}$ assumption. It does not guarantee that the same contour branch extends through the entire measured region. Near a vanishing denominator, a d-current compensation slope can become ill-conditioned or cease to be a suitable parameterization.
+
+\subsection{From a differential slope to a finite secant}
+For a single admissible constant-flux path connecting excitation values $e_1,e_2$, integrate the derivative:
+\begin{align}
+i_d(e_2)-i_d(e_1)
+&=\int_{e_1}^{e_2}\frac{\dd i_d}{\dd e}\,\dd e,\\
+-\frac{\Delta i_d}{\Delta i_e}
+&=\frac{1}{e_2-e_1}\int_{e_1}^{e_2}
+\left(\frac{L_{de}}{L_{dd}}
++\frac{L_{dq}}{L_{dd}}\frac{\dd i_q}{\dd e}\right)\dd e.
+\label{eq:finite-contour-slope}
+\end{align}
+A finite quotient is therefore a path average, even when both endpoints really lie on the same contour. It equals one fixed local ratio only under further conditions, for example constant sensitivities and fixed q-current. Applying~\eqref{eq:finite-contour-slope} to arbitrary numerical centroids would assume precisely what must first be established: that their flux values are equal and that an admissible connecting contour path exists.
+
+\section{The displacement of contour averages}
+The contour statistic changes the whole crossing population when the excitation group changes. Some crossing coordinates move physically; others appear or disappear because a contour is clipped by the measurement boundary or intersects a different mesh. Thus $\Delta\bar i_q/\Delta\bar i_e$ mixes a geometric displacement with changes of the averaging population.
+
+For a hypothetical differentiable family of centroid coordinates, parameterized by its mean excitation $e$, define the full-field value
+\begin{equation}
+\chi(e)=\psi_d(\bar d(e),\bar q(e),e).
+\end{equation}
+The same chain rule now gives
+\begin{equation}
+\chi'(e)=L_{dd}\bar d'(e)+L_{dq}\bar q'(e)+L_{de}.
+\end{equation}
+Rearranging shows the missing term in a constant-flux interpretation:
+\begin{equation}\label{eq:centroid-slope}
+-\bar d'(e)=\frac{L_{de}}{L_{dd}}
++\frac{L_{dq}}{L_{dd}}\bar q'(e)-\frac{\chi'(e)}{L_{dd}}.
+\end{equation}
+The drift term is only one contribution. If the average leaves the contour and its flux value changes, $\chi'$ contributes as well. The measured diagnostic~\eqref{eq:centroid-departure} evaluates a group interpolant, not an independently measured full three-current field at the centroid. It cannot automatically be substituted for $\chi-\lambda$ in~\eqref{eq:centroid-slope}.
+
+An exact finite-endpoint identity is also instructive. Let $\bm c_0,\bm c_1$ be two centroid coordinates and assume the straight segment $\bm c(t)=\bm c_0+t\Delta\bm c$ lies inside a differentiable full-field domain. Then
+\begin{equation}
+\Delta\psi_d=\int_0^1
+\left(L_{dd}(\bm c(t))\Delta\bar d+
+L_{dq}(\bm c(t))\Delta\bar q+
+L_{de}(\bm c(t))\Delta\bar e\right)\dd t.
+\end{equation}
+Writing $\langle L_{xy}\rangle=\int_0^1L_{xy}(\bm c(t))\dd t$, and assuming $\Delta\bar e\ne0$ and $\langle L_{dd}\rangle\ne0$, gives
+\begin{equation}\label{eq:finite-centroid}
+-\frac{\Delta\bar d}{\Delta\bar e}
+=\frac{\langle L_{de}\rangle}{\langle L_{dd}\rangle}
++\frac{\langle L_{dq}\rangle}{\langle L_{dd}\rangle}
+\frac{\Delta\bar q}{\Delta\bar e}
+-\frac{\Delta\psi_d}{\langle L_{dd}\rangle\Delta\bar e}.
+\end{equation}
+This identity does not assert that the segment is a contour. The last term accounts for its possibly unequal endpoint fluxes. A ratio of path-averaged derivatives in~\eqref{eq:finite-centroid} and an average of derivative ratios along a contour in~\eqref{eq:finite-contour-slope} are different mathematical objects.
+
+\section{Why a mean coordinate need not lie on the contour}
+\subsection{An exact curved-contour example}
+Consider the analytic field
+\begin{equation}\label{eq:parabolic-example}
+\psi_d(d,q,e)=L_d(d+k_0e)+c q^2,
+\qquad L_d>0.
+\end{equation}
+Here $L_d$ is a constant in H, $k_0$ is in A/A, and $c$ is in Vs/A$^2$. The field has an exact scalar reduction with coefficient $k_0$. Its d-flux contours at level $\lambda$ satisfy
+\begin{align}
+L_d(d+k_0e)&=\lambda-cq^2,\\
+d&=\frac{\lambda}{L_d}-k_0e-\frac{c}{L_d}q^2.
+\label{eq:parabolic-contour}
+\end{align}
+The contour is curved in the stator-current plane when $c\ne0$. Average~\eqref{eq:parabolic-contour} over any finite set of exact contour points, including measured variation in $e$:
+\begin{equation}\label{eq:mean-parabola}
+\bar d=\frac{\lambda}{L_d}-k_0\bar e
+-\frac{c}{L_d}\overline{q^2},
+\qquad
+\overline{q^2}=\frac1M\sum_m q_m^2.
+\end{equation}
+Now evaluate the original field at the average coordinate:
+\begin{align}
+\psi_d(\bar d,\bar q,\bar e)
+&=L_d\left(\frac{\lambda}{L_d}
+-\frac{c}{L_d}\overline{q^2}\right)+c\bar q^2\\
+&=\lambda-c(\overline{q^2}-\bar q^2).
+\end{align}
+With population variance $\operatorname{var}(q)=\overline{q^2}-\bar q^2$, the centroid departure is exactly
+\begin{equation}\label{eq:variance-departure}
+\boxed{\psi_d(\bar d,\bar q,\bar e)-\lambda=-c\,\operatorname{var}(q).}
+\end{equation}
+For $c>0$, the centroid lies below the chosen flux level. Even a symmetric crossing population with $\bar q=0$ has a nonzero departure whenever its q-coordinates have nonzero spread. Vanishing mean q-current therefore does not eliminate curvature bias.
+
+For two groups evaluated at the same $\lambda$, subtract~\eqref{eq:mean-parabola}:
+\begin{equation}
+\Delta\bar d=-k_0\Delta\bar e
+-\frac{c}{L_d}\Delta\overline{q^2}.
+\end{equation}
+Hence the signed displacement ratio is
+\begin{equation}\label{eq:variance-factor-bias}
+-\frac{\Delta\bar d}{\Delta\bar e}
+=k_0+\frac{c}{L_d}
+\frac{\Delta\overline{q^2}}{\Delta\bar e}.
+\end{equation}
+The second moment decomposes as
+\begin{equation}
+\Delta\overline{q^2}
+=\Delta\operatorname{var}(q)+\Delta(\bar q^2).
+\end{equation}
+Both a change of mean position and a change of spread can alter the estimated displacement. If both groups have zero mean q-current, only the variance difference remains. If their second moments are equal, the signed factor is exactly $k_0$ despite a potentially large, identical centroid departure in both groups. A centroid error is therefore not automatically an equally large factor error. The absolute numerator in the conventional estimator requires a further sign check before~\eqref{eq:variance-factor-bias} can be identified with its individual ratio.
+
+\subsection{A local curvature interpretation beyond the example}
+Let $\bm\mu=M^{-1}\sum_m\bm c_m$ and $\bm\delta_m=\bm c_m-\bm\mu$. For a sufficiently smooth scalar field,
+\begin{equation}
+\psi_d(\bm c_m)=\psi_d(\bm\mu)
++\nabla\psi_d(\bm\mu)^{\mathsf T}\bm\delta_m
++\frac12\bm\delta_m^{\mathsf T}H_d(\bm\mu)\bm\delta_m
++R_m,
+\end{equation}
+where $H_d$ is the Hessian. Average this expression. The linear term vanishes because $\sum_m\bm\delta_m=0$. If all points have exact flux $\lambda$ and
+$\Sigma=M^{-1}\sum_m\bm\delta_m\bm\delta_m^{\mathsf T}$, then
+\begin{equation}\label{eq:hessian-centroid}
+\psi_d(\bm\mu)-\lambda
+=-\frac12\operatorname{tr}(H_d(\bm\mu)\Sigma)-\overline R.
+\end{equation}
+For bounded third derivatives over a sufficiently small neighborhood, $R_m$ is of third order in $\norm{\bm\delta_m}$. Curvature and the spatial distribution of points act together. A large contour, disconnected pieces or strong variation of curvature can invalidate a local second-order approximation, even though the exact parabolic example remains valid for any spread.
+
+\section{Dependence on triangulation and sampling}
+The unweighted average is an average with respect to an empirical crossing measure, not an invariant property of the contour geometry. To see this without any machine model, suppose a crossing set has mean $\bm\mu$ and size $M$. Add one duplicate of an existing crossing $\bm c_r$. Its new mean is
+\begin{equation}
+\bm\mu'=\frac{M\bm\mu+\bm c_r}{M+1},
+\qquad
+\bm\mu'-\bm\mu=\frac{\bm c_r-\bm\mu}{M+1}.
+\end{equation}
+The geometric contour has not changed, but its arithmetic mean changes unless $\bm c_r=\bm\mu$. Refining the mesh in one region can have this same weighting effect by creating more intersections there.
+
+If crossings approach a smooth contour parameterized by arclength $\ell$ with nonuniform asymptotic density $\rho(\ell)$, their arithmetic mean approaches
+\begin{equation}\label{eq:density-mean}
+\frac{\int \bm c(\ell)\rho(\ell)\,\dd\ell}
+{\int\rho(\ell)\,\dd\ell}.
+\end{equation}
+An arclength centroid would instead set $\rho=1$. Equal geometric contours can therefore yield different arithmetic limits under different sampling densities. Disconnected pieces, vertex multiplicity and truncated contours create additional effective weights.
+
+Delaunay connectivity depends on the metric of the triangulation coordinates. Uniform rotation and scaling preserve its Euclidean geometric criterion in the usual nondegenerate case; independent axis rescaling need not do so. Near co-circular configurations, small coordinate changes can switch a diagonal. The intersection population and filtered edges can then change even when the underlying continuous field does not. The conventional triangulation uses physical stator-current axes; the common reduced table uses range-normalized transformed coordinates. These are different numerical operations.
+
+The long-edge rule limits some sparse connections but can preferentially remove one side of a curved or asymmetric contour. No symmetry completion is applied. Consequently, observed q-drift may combine genuine contour movement and discretization or coverage effects. The available statistics do not uniquely apportion these contributions.
+
+\subsection{Why ratios can be sensitive}
+For a differentiable ratio $r=A/B$ near $B\ne0$,
+\begin{equation}\label{eq:ratio-uncertainty}
+\delta r\simeq\frac{\delta A}{B}-\frac{A}{B^2}\delta B,
+\end{equation}
+so the first-order variance estimate is
+\begin{equation}
+\operatorname{var}(r)\simeq
+\frac{\sigma_A^2}{B^2}
++\frac{A^2\sigma_B^2}{B^4}
+-\frac{2A}{B^3}\operatorname{cov}(A,B).
+\end{equation}
+Small excitation separations amplify both numerator and denominator uncertainty. Averaging many ratios does not remove a systematic displacement bias shared by them.
+
+Even zero-mean errors in $A$ and $B$ need not yield an unbiased ratio. A second-order expansion around nonzero mean $\mu_B$ gives
+\begin{equation}
+\mathbb E[A/B]\simeq
+\frac{\mu_A}{\mu_B}
+-\frac{\operatorname{cov}(A,B)}{\mu_B^2}
++\frac{\mu_A\operatorname{var}(B)}{\mu_B^3}.
+\end{equation}
+These local expansions assume fluctuations small compared with $|\mu_B|$. They do not justify a Gaussian uncertainty model near a denominator crossing zero. The conventional absolute numerator is also nondifferentiable at zero displacement, so its uncertainty needs separate treatment there.
+
+\section{Conditions for an exact common scalar reduction}
+\subsection{The discarded direction}
+Let $\Omega\subset\mathbb R^3$ be open and $\ps\in C^1(\Omega)$. For a prescribed constant $k$, define
+\begin{equation}
+\pi_k(i_d,i_q,i_e)=(i_d+k i_e,i_q).
+\end{equation}
+An exact reduction requires one function $\bm F$ such that
+\begin{equation}\label{eq:exact-factorization}
+\ps=\bm F\circ\pi_k.
+\end{equation}
+All physical points with the same $(s,i_q)$ lie on a \emph{fibre}. Moving on that fibre changes excitation by $\dd i_e$ and changes d-current by $-k\,\dd i_e$, with q-current fixed.
+
+Differentiate the two output components of~\eqref{eq:exact-factorization}:
+\begin{align}
+L_{dd}&=F_{d,s},&L_{de}&=kF_{d,s},\\
+L_{qd}&=F_{q,s},&L_{qe}&=kF_{q,s}.
+\end{align}
+Both outputs must therefore satisfy
+\begin{equation}\label{eq:scalar-exactness}
+\boxed{L_{de}=kL_{dd},\qquad L_{qe}=kL_{qd}.}
+\end{equation}
+Identifying a slope from d-flux alone verifies at most the first relation. The second need not follow from it.
+
+\begin{proposition}\label{prop:scalar-factorization}
+For a fixed constant $k$, conditions~\eqref{eq:scalar-exactness} are necessary and locally sufficient for~\eqref{eq:exact-factorization}. They are globally sufficient if every nonempty fibre in $\Omega$ is connected. If fibre components are disconnected, equality of flux between those components is an additional requirement.
+\end{proposition}
+\begin{proof}
+Use the invertible change of coordinates $(i_d,i_q,i_e)=(s-ke,q,e)$ and define $\bm h(s,q,e)=\ps(s-ke,q,e)$. Its derivative at fixed $(s,q)$ is
+\begin{equation}\label{eq:fibre-derivative}
+\frac{\partial\bm h}{\partial e}
+=\begin{bmatrix}L_{de}-kL_{dd}\\L_{qe}-kL_{qd}\end{bmatrix}.
+\end{equation}
+Necessity follows because a function of $(s,q)$ alone cannot vary with $e$. Conversely, if this derivative is zero on an open neighborhood, $\bm h$ is locally independent of $e$, giving a local $\bm F$. Along a connected fibre the fundamental theorem of calculus makes all these values equal. Defining $\bm F$ by that common value is well posed; local coordinate neighborhoods give its $C^1$ regularity on the open projected domain. Zero derivative on one disconnected interval says nothing about the constant value on another interval, which proves the final qualification.
+\end{proof}
+
+Connectedness of the whole current domain does not by itself ensure connected fibres. The proposition also requires the \emph{same} $k$ throughout the domain. Finding some suitable local factor at each point is a weaker statement.
+
+\subsection{The sensitivity-vector geometry}
+Define the two output sensitivities to d-current and excitation:
+\begin{equation}\label{eq:sensitivity-vectors}
+\bm a=\begin{bmatrix}L_{dd}\\L_{qd}\end{bmatrix},
+\qquad
+\bm b=\begin{bmatrix}L_{de}\\L_{qe}\end{bmatrix}.
+\end{equation}
+Exact local scalar compensation requires $\bm b=k\bm a$. If $\bm a\ne0$, such a scalar exists exactly when
+\begin{equation}
+\Delta=L_{dd}L_{qe}-L_{qd}L_{de}=0.
+\end{equation}
+The determinant is the signed area spanned by these vectors in two-output sensitivity space; its units are H$^2$. If both vectors are nonzero, normalize it:
+\begin{equation}\label{eq:eta-angle}
+\eta=\frac{|\Delta|}{\norm{\bm a}\norm{\bm b}}=|\sin\theta|.
+\end{equation}
+This measures directional mismatch, not relative flux error. If $\bm a=0$ and $\bm b\ne0$, no d-shift compensates excitation. If both vanish, every scalar satisfies the local equation and the factor is unidentifiable. A vanishing determinant alone would fail to distinguish these cases.
+
+\section{Local and global identification}
+\subsection{Deriving the local least-squares factor}
+When $\bm b$ is not parallel to $\bm a$, minimize its unexplained sensitivity:
+\begin{align}
+E(k)&=\norm{\bm b-k\bm a}^2\\
+&=\bm b^{\mathsf T}\bm b-2k\bm a^{\mathsf T}\bm b
++k^2\bm a^{\mathsf T}\bm a.
+\end{align}
+Differentiating and setting the result to zero gives
+\begin{align}
+E'(k)&=-2\bm a^{\mathsf T}\bm b+2k\bm a^{\mathsf T}\bm a=0,\\
+k_{\rm loc}&=\frac{\bm a^{\mathsf T}\bm b}{\bm a^{\mathsf T}\bm a},
+\qquad \bm a\ne0.\label{eq:local-ls}
+\end{align}
+The positive second derivative $2\norm{\bm a}^2$ establishes the unique minimum under this nonzero-sensitivity assumption. The residual $\bm r=\bm b-k_{\rm loc}\bm a$ satisfies $\bm a^{\mathsf T}\bm r=0$: the remaining excitation response is perpendicular to the available compensation direction.
+
+For two components, direct expansion further gives
+\begin{equation}
+\min_k\norm{\bm b-k\bm a}^2
+=\frac{\Delta^2}{\norm{\bm a}^2}.
+\end{equation}
+This connects determinant and LS residual without identifying either as a finite flux-reconstruction error.
+
+The separate ratios $L_{de}/L_{dd}$ and $L_{qe}/L_{qd}$ each fit one component exactly when their denominator is nonzero. They can disagree. The joint formula~\eqref{eq:local-ls} avoids division by an individually small cross-inductance, but still becomes poorly conditioned when the whole vector $\bm a$ is small.
+
+\subsection{One constant factor fitted to many derivative samples}
+For a fixed derivative population $\mathcal V$, minimize
+\begin{equation}
+E_{\rm glob}(k)=\sum_{j\in\mathcal V}\norm{\bm b_j-k\bm a_j}^2.
+\end{equation}
+The same differentiation yields
+\begin{equation}\label{eq:global-derivative-ls}
+k_{\rm der}=
+\frac{\sum_j\bm a_j^{\mathsf T}\bm b_j}
+{\sum_j\norm{\bm a_j}^2}
+=\frac{\sum_j\norm{\bm a_j}^2k_{{\rm loc},j}}
+{\sum_j\norm{\bm a_j}^2}.
+\end{equation}
+Thus the global derivative factor is a sensitivity-weighted mean of local factors, not their arithmetic mean or median. Changing the retained population or current weighting changes the fitted global value.
+
+The reported relative derivative residual has the form
+\begin{equation}\label{eq:relative-derivative-residual}
+\rho(k)=
+\frac{\left(\sum_j\norm{\bm b_j-k\bm a_j}^2\right)^{1/2}}
+{\left(\sum_j\norm{\bm b_j}^2\right)^{1/2}}.
+\end{equation}
+The raw residual is in H; $\rho$ is dimensionless. Neither is an error in Vs. Along an actual discarded-direction path, however,~\eqref{eq:fibre-derivative} can be integrated:
+\begin{equation}
+\ps(s-ke_2,q,e_2)-\ps(s-ke_1,q,e_1)
+=\int_{e_1}^{e_2}(\bm b-k\bm a)\,\dd e.
+\end{equation}
+Only with suitable pathwise information could one bound a finite discrepancy, for example by $\int\norm{\bm b-k\bm a}\dd e$. A pooled sample residual does not by itself supply that bound.
+
+\subsection{How empirical derivatives enter the argument}
+The derivative estimates used here are local affine regressions, not direct inductance measurements. Normalize each measured current by its observed range, choose the nearest $h$ points, and fit the two flux outputs to an intercept plus three normalized-current offsets. Squared normalized distances determine Gaussian weights. Equivalently, the least-squares design and outputs are multiplied by the square roots of those weights. The fitted slopes are divided by the physical current ranges to recover H.
+
+Neighborhood counts $h=40,80,120$ are available, with 80 used for the primary display. A neighborhood must contain at least two nominal excitation groups. Ill-conditioned affine designs and weak sensitivity vectors are excluded by numerical screens. Such rules protect a fit; they do not establish physical validity of every retained derivative. A comparison across neighborhood counts must use their common retained points, which can differ from the primary 80-neighbor population.
+
+\subsection{Why the different factors need not agree}
+The conventional factor~\eqref{eq:k-conventional} uses d-flux contours, arithmetic crossing averages and adjacent-group quotients. The local factor~\eqref{eq:local-ls} fits two derivative components at one point. The global factor~\eqref{eq:global-derivative-ls} pools derivative residuals. A reconstruction-optimal constant instead minimizes finite flux errors after a specified common table has been built. A pointwise alignment factor moves a query on an already fixed table to fit its known target flux.
+
+These objectives differ in physical quantity, weights, population, support and numerical representation. They coincide in special exact models with appropriate sampling; agreement is not a general identity. The complete stator differential matrix, needed later for two-axis compensation and control, is
+\begin{equation}\label{eq:differential-matrix}
+\Lmat=\begin{bmatrix}L_{dd}&L_{dq}\\L_{qd}&L_{qq}\end{bmatrix}.
+\end{equation}
+The available stator outputs provide this matrix and $\bm b$; they do not provide an independently identified excitation flux linkage or the remaining excitation-circuit inductances.

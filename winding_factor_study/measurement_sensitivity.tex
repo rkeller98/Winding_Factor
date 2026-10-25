@@ -1,0 +1,183 @@
+\chapter{Sensitivity to Measurement and Modeling Errors}\label{ch:measurement}
+
+\section{What the stationary voltage calculation assumes}
+The reference flux values are reconstructed from measured electrical quantities, rather than measured directly by an independent flux sensor. With the adopted dq convention,
+\begin{align}
+u_d&=R_si_d+\frac{\dd\psi_d}{\dd t}-\omega_e\psi_q,\notag\\
+u_q&=R_si_q+\frac{\dd\psi_q}{\dd t}+\omega_e\psi_d.
+\label{eq:voltage-full}
+\end{align}
+The signs in every subsequent sensitivity formula follow from~\eqref{eq:voltage-full}. Here $\omega_e=p\omega_m$ is electrical angular speed in rad/s, and $p$ is the number of pole pairs.
+
+For stationary dq flux, set both time derivatives to zero. Moving the resistive terms and dividing by nonzero speed gives
+\begin{equation}\label{eq:stationary-flux}
+\psi_d=\frac{u_q-R_si_q}{\omega_e},
+\qquad
+\psi_q=\frac{R_si_d-u_d}{\omega_e}.
+\end{equation}
+This operation is increasingly sensitive to voltage and resistance errors as $|\omega_e|$ decreases. It is not an identification method at zero speed.
+
+If the fluxes are not stationary, the same algebra instead yields
+\begin{align}
+\frac{u_q-R_si_q}{\omega_e}
+&=\psi_d+\frac{\dot\psi_q}{\omega_e},\\
+\frac{R_si_d-u_d}{\omega_e}
+&=\psi_q-\frac{\dot\psi_d}{\omega_e}.
+\end{align}
+Residual transients are then folded into the apparent source flux. Period averaging reduces some oscillatory components but does not prove that every operating point satisfies the stationary assumptions.
+
+\section{Stator-resistance errors}
+\subsection{Deriving the component errors and their signs}
+Let the resistance used in~\eqref{eq:stationary-flux} be $\widehat R_s=R_s+\Delta R_s$, while measured currents, voltage and speed are temporarily assumed exact. Define every flux error here as estimated minus true:
+\begin{align}
+\Delta\psi_d
+&=\frac{u_q-(R_s+\Delta R_s)i_q}{\omega_e}
+-\frac{u_q-R_si_q}{\omega_e}
+=-\frac{\Delta R_s}{\omega_e}i_q,\notag\\
+\Delta\psi_q
+&=\frac{(R_s+\Delta R_s)i_d-u_d}{\omega_e}
+-\frac{R_si_d-u_d}{\omega_e}
+=\frac{\Delta R_s}{\omega_e}i_d.
+\label{eq:resistance-flux-error}
+\end{align}
+A positive resistance overestimate therefore tilts the d-flux field downward with increasing q-current and tilts the q-flux field upward with increasing d-current, for positive speed.
+
+At constant speed and resistance mismatch, write $\alpha=\Delta R_s/\omega_e$. Its units are H. The apparent fields are
+\begin{equation}
+\widetilde\psi_d=\psi_d-\alpha i_q,\qquad
+\widetilde\psi_q=\psi_q+\alpha i_d.
+\end{equation}
+Their stator-current differential matrix becomes
+\begin{equation}\label{eq:tilted-inductance}
+\widetilde{\bm L}_s=
+\begin{bmatrix}
+L_{dd}&L_{dq}-\alpha\\
+L_{qd}+\alpha&L_{qq}
+\end{bmatrix}.
+\end{equation}
+Thus a resistance mismatch can introduce an antisymmetric derivative contribution. A measured cross-derivative discrepancy alone does not identify resistance as its cause: interpolation, timing, angle conventions and other uncertainties can also contribute. If $\alpha$ varies with current or temperature, differentiating it produces additional terms omitted in~\eqref{eq:tilted-inductance}.
+
+\subsection{A local d-contour ratio can remain unchanged}
+For constant $\alpha$, the d-flux partial derivatives $L_{dd}$ and $L_{de}$ are unchanged. Consequently, the fixed-q ratio $L_{de}/L_{dd}$ can remain unchanged even though the contours in the $(i_d,i_q)$ plane tilt. At a fixed contour level, a small d-displacement compensating the tilt satisfies
+\begin{equation}
+L_{dd}\delta i_d-\alpha i_q\simeq0,
+\qquad
+\delta i_d\simeq\frac{\alpha i_q}{L_{dd}}.
+\end{equation}
+Different q-regions therefore move by different amounts. Crossing populations, truncation and arithmetic centroid positions can change. If the level-selection endpoints also move, the additional level perturbation enters as
+$L_{dd}\delta i_d\simeq\delta\lambda+\alpha i_q$.
+
+For a fixed crossing topology with normalized weights $w_m$, differentiation of $\bar d=\sum_m w_m d_m$ gives
+\begin{equation}
+\delta\bar d=\sum_m w_m\delta d_m
++\sum_m\delta w_m(d_m-\bar d),
+\qquad \sum_m\delta w_m=0.
+\end{equation}
+The second term is the contribution from changed sampling weights, not a physical trajectory of one contour point. Edge appearances, disappearances or filtering transitions can make the statistic nonsmooth, so this linearized expression has only local applicability.
+
+\subsection{Why joint scalar reduction can appear inconsistent}
+Suppose the true fluxes have an exact scalar representation $\psi_x=F_x(s,q)$ with $s=i_d+k_0i_e$. The resistance-perturbed q-flux becomes
+\begin{align}
+\widetilde\psi_q
+&=F_q(s,q)+\alpha i_d\\
+&=F_q(s,q)+\alpha s-\alpha k_0i_e.
+\end{align}
+At fixed $(s,q)$, its final term still varies with excitation. The measured pair therefore need not satisfy the same reduction even if the underlying pair did. In sensitivity-vector notation, $\widetilde{\bm a}=(L_{dd},L_{qd}+\alpha)^{\mathsf T}$ and $\widetilde{\bm b}=\bm b$, so
+\begin{equation}
+\widetilde\Delta=\Delta-\alpha L_{de}.
+\end{equation}
+This is a concrete mathematical mechanism, not a fitted causal attribution to the data. Neither a nonzero determinant nor a tilted measured field proves which measurement error occurred.
+
+\section{Temperature and averaging}
+A local resistance approximation around temperature $T_0$ is
+\begin{equation}
+R_s(T)\simeq R_s(T_0)\{1+\alpha_R(T-T_0)\},
+\end{equation}
+where the temperature coefficient $\alpha_R$ must correspond to the actual conductor and calibration convention. If a fixed resistance is used over changing temperatures, the resulting $\Delta R_s(T)$ enters~\eqref{eq:resistance-flux-error}. If a temperature-compensated resistance channel is used, its calibration and synchronization still matter.
+
+Magnetic properties can depend on temperature as well. An extended quasistatic map would be $\ps(\bm i,T)$, with
+\begin{equation}
+\dot{\ps}=D_{\bm i}\ps\,\dot{\bm i}
++\frac{\partial\ps}{\partial T}\dot T.
+\end{equation}
+Slow temperature variation during different measurement groups can therefore create apparent current dependence when all records are pooled into a current-only field. It can also alter genuine incremental sensitivities. These effects cannot be removed by assuming that a recorded temperature range was a controlled, uniform magnetic temperature.
+
+The observed stator temperature ranges in the datasets are broad, as described in Chapter~\ref{ch:results}. They document telemetry, not an isothermal experiment. In particular, an implausible rotor-temperature channel is not used to infer calibrated rotor thermal behavior.
+
+The source records are averages of electrical quantities. In general,
+\begin{equation}
+\overline{\omega_e\psi_x}
+=\bar\omega_e\,\bar\psi_x+
+\operatorname{cov}(\omega_e,\psi_x).
+\end{equation}
+Dividing averaged voltages by averaged speed is not exactly the same as averaging an instantaneous quotient if speed and flux fluctuate together. Repetition averaging also changes the relative weighting of acquisition records. These are possible sources of empirical-map variability, not quantified uncertainty contributions in the present evidence.
+
+\section{Angular errors and measurement delays}
+\subsection{A constant angle offset rotates both vectors and coordinates}
+Let the angle used for the dq transformation exceed the true angle by $\delta$. With rotation
+\begin{equation}
+R(\delta)=\begin{bmatrix}\cos\delta&-\sin\delta\\
+\sin\delta&\cos\delta\end{bmatrix},
+\end{equation}
+the components formed with the shifted angle satisfy
+\begin{equation}
+\begin{bmatrix}\hat i_d\\\hat i_q\end{bmatrix}
+=R(-\delta)\begin{bmatrix}i_d\\i_q\end{bmatrix}.
+\end{equation}
+For small $\delta$, $\hat i_d\simeq i_d+\delta i_q$ and
+$\hat i_q\simeq i_q-\delta i_d$. The same component mixing applies to a consistently transformed flux vector at one physical state:
+\begin{equation}
+\hat\psi_d\simeq\psi_d+\delta\psi_q,\qquad
+\hat\psi_q\simeq\psi_q-\delta\psi_d.
+\end{equation}
+However, the map arguments rotate too. A consistent transformed map is
+\begin{equation}
+\widehat{\ps}(\hat{\bm i}_{dq},i_e)
+=R(-\delta)\ps(R(\delta)\hat{\bm i}_{dq},i_e),
+\end{equation}
+not merely an output offset at unchanged numerical input coordinates.
+
+A true compensation direction $(k,0)^{\mathsf T}$ in one frame would become
+$R(-\delta)(k,0)^{\mathsf T}$ in the other. An apparent q-axis compensation component can therefore reflect coordinate alignment as well as magnetic behavior. This example does not establish the presence or value of an angle error in any dataset.
+
+\subsection{A time delay has more than one interpretation}
+For a smooth scalar signal,
+\begin{equation}
+x(t-\tau)=x(t)-\tau\dot x(t)+O(\tau^2).
+\end{equation}
+A delayed dq-current telemetry signal therefore differs during a dq-current transient. A delay in raw phase-current sampling before transformation can instead produce a phase error approximately $\delta\simeq\omega_e\tau$ even when the desired dq currents are steady. The correct relationship depends on where sampling, filtering and coordinate transformation occur.
+
+If $\delta$ itself varies, the angular-speed channel can also acquire a $\dot\delta$ contribution. A single constant angle-offset formula does not capture this entire timing chain. Known acquisition differences motivate sensitivity questions but do not demonstrate a causal explanation of a reconstruction error or a reported oscillation.
+
+\section{Voltage, current and speed uncertainty}
+Linearize~\eqref{eq:stationary-flux} while allowing voltage, current, resistance and speed errors. Neglect products of small errors:
+\begin{align}
+\Delta\psi_d&\simeq
+\frac{\Delta u_q-R_s\Delta i_q-i_q\Delta R_s}{\omega_e}
+-\psi_d\frac{\Delta\omega_e}{\omega_e},\notag\\
+\Delta\psi_q&\simeq
+\frac{R_s\Delta i_d+i_d\Delta R_s-\Delta u_d}{\omega_e}
+-\psi_q\frac{\Delta\omega_e}{\omega_e}.
+\label{eq:general-flux-sensitivity}
+\end{align}
+Voltage offsets, gain errors and speed uncertainty can therefore distort the fields differently from resistance alone. Current errors also perturb the horizontal map coordinates, an effect not exhausted by their appearance in the numerators of~\eqref{eq:general-flux-sensitivity}.
+
+The calculation uses recorded electrical speed, not requested mechanical speed. Observed differences between actual and requested speed are consequently not themselves evidence that the wrong speed was used. Similarly, commanded inverter voltage and measured fundamental voltage are not interchangeable without a verified conversion.
+
+\section{Iron losses and other omitted effects}
+The dq voltage balance remains a balance of terminal quantities and winding flux linkages under its stated transformation and averaging assumptions. Iron loss does not automatically invalidate that balance. It can invalidate an overly simple constitutive relation between terminal current and a single quasistatic magnetic state.
+
+For example, a loss-aware equivalent description might separate magnetizing and loss-related currents,
+\begin{equation}
+\bm i_s=\bm i_m+\bm i_{\rm loss},
+\qquad
+\ps=\ps_m(\bm i_m,i_e,\text{magnetic state}).
+\end{equation}
+The loss-related current can depend on frequency, flux amplitude and history. Eliminating it may introduce speed dependence, phase shifts or extra dynamics into an apparent flux map indexed only by terminal currents. This is an illustration of missing state dependence, not an identified model for the present measurements.
+
+Replacing all such effects by a universal additive stator resistance would ignore their different directions, frequency dependences and state variables. Eddy-current dynamics, hysteresis, inverter nonlinearities and harmonic averaging can contribute in different ways. No available experiment independently isolates all of them.
+
+\section{What can be concluded from these sensitivities}
+The algebra identifies mechanisms capable of changing contour shape, derivative direction and joint reducibility. It does not identify their magnitudes from the existing current maps alone. An empirical failure of exact reduction can arise from genuine magnetic incompatibility, measurement distortion, numerical representation or a combination.
+
+For the subsequent control discussion, source-flux errors and reduction errors both matter because the controller uses the returned flux. Their physical origins need not be identical. A speed-dependent feedforward consequence can be derived without claiming that the underlying flux error has already been uniquely explained.
