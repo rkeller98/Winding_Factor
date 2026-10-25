@@ -1,76 +1,138 @@
 function prepare_flux_fit_data
-%% Common physical points and explicit training/validation/test partitions.
-addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'common'));
-root=setup_matlab_paths('function_model');
-out=fullfile(root,'results','flux_fits'); if ~isfolder(out),mkdir(out);end
-data=cell(3,1); inventory=[];
-for s=1:3
- file=fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'extracted', ...
-     'evaluation','research_flux_measurements.mat');
- require_analysis_file(file,'prepare_reduction_data');
- a=load(file,'Total');
- x=[];y=[];nominal=[];temperature=[];speed=[];
- fn=fieldnames(a.Total);
- for j=1:numel(fn)
-  groups=fieldnames(a.Total.(fn{j}));
-  for g=1:numel(groups)
-   b=a.Total.(fn{j}).(groups{g}); m=b.Meas;
-   x=[x; m.PE_Id_meas_avg(:),m.PE_Iq_meas_avg(:),m.I_exc_meas(:)];
-   y=[y; m.PE_psi_d_meas(:),m.PE_psi_q_meas(:)];
-   nominal=[nominal; b.Ref_exc_current+zeros(numel(m.I_exc_meas),1)];
-   temperature=[temperature;m.CAN_T_Stat_max(:)];
-   speed=[speed;b.Ref_Speed+zeros(numel(m.I_exc_meas),1)];
-  end
- end
- [levels,~,group]=unique(nominal); ng=numel(levels);
- d=struct('name',sprintf('Set%d',s),'x',x,'y',y,'group',group,'levels',levels, ...
-     'active',{{'id','iq','ie'}},'input_units',{{'A','A','A'}}, ...
-     'group_name','Nominal excitation','group_unit','A','temperature',temperature, ...
-     'speed',median(speed),'source','Fresh arithmetic channel means; stationary voltage-derived flux', ...
-     'fixed_condition','Temperature was recorded but not controlled or corrected');
- % Reserve ng-1 as a training anchor below the separate upper boundary ng.
- d.validation=ismember(group,2:4:ng-2);d.test=ismember(group,4:4:ng-2);
- d.boundary=group==ng; d.train=~(d.validation|d.test|d.boundary);
- data{s}=d;
- inventory=[inventory;s,size(x,1),ng,nnz(d.train),nnz(d.validation),nnz(d.test), ...
-     nnz(d.boundary),min(temperature),max(temperature),median(speed)];
-end
-% A processed test artifact exists, but its acquisition fixture is not available.
-% It is a secondary reference exercise, never independent temperature evidence.
-file=fullfile(root,'Resources','GUI_VICE-MeasurementEvalKit','SourceCode','tests', ...
- 'Artifacts','json_api_headless_real_run','psm_temperature','flux_psm_temperature_30C_70C.mat_result.mat');
-if isfile(file)
- a=load(file,'Total');b=a.Total.pos_2500_rpm.pos_0_A;m=b.Meas;
- x=[m.PE_Id_meas_avg(:),m.PE_Iq_meas_avg(:),m.CAN_T_Rot_max(:)];
- omega=m.PE_w_el_rad_avg(:);rs=m.Const_Machine_R_s(:);
- y=[(m.PE_Uq_meas_avg(:)-rs.*x(:,2))./omega, ...
-     (rs.*x(:,1)-m.PE_Ud_meas_avg(:))./omega];
- group=1+(x(:,3)>50);z=(x(:,1:2)-min(x(:,1:2)))./(max(x(:,1:2))-min(x(:,1:2)));
- tile=min(floor(4*z(:,1)),3)+4*min(floor(4*z(:,2)),3);role=mod(tile,5);
- d=struct('name','Temperature fixture','x',x,'y',y,'group',group,'levels',[30;70], ...
-  'active',{{'id','iq','theta_rotor'}},'input_units',{{'A','A','deg C'}}, ...
-  'group_name','Temperature band','group_unit','deg C','temperature',x(:,3),'speed',2500, ...
-  'source','Processed headless test artifact; absent acquisition fixture; unverified physical provenance', ...
-  'fixed_condition','PSM-labelled artifact, nominal excitation 0 A; no independent temperature holdout');
- d.validation=role==1;d.test=role==3;d.boundary=false(size(group));
- d.train=~(d.validation|d.test); data{4}=d;
- inventory=[inventory;4,size(x,1),2,nnz(d.train),nnz(d.validation),nnz(d.test),0, ...
-     min(x(:,3)),max(x(:,3)),2500];
-end
-if ~isfile(file)
- fprintf('Optional temperature fixture absent: %s\nContinuing with the three measured-current datasets.\n',file);
-end
-for s=1:numel(data)
- d=data{s};tr=d.train;
- map=fit_reduction_map(d.x(tr,:),d.y(tr,:),8,[],max(abs(d.x(tr,:))),81,true);
- d.validation_support=all(isfinite(reduction_lookup(map,d.x)),2)&d.validation;
- data{s}=d;
- fprintf('%s: train %d, validation %d (%d LUT supported), test %d, upper boundary %d\n', ...
- d.name,nnz(tr),nnz(d.validation),nnz(d.validation_support),nnz(d.test),nnz(d.boundary));
-end
-writetable(array2table(inventory,'VariableNames',{'dataset','points','groups','training', ...
- 'validation','test','upper_boundary','temperature_min_C','temperature_max_C','requested_rpm'}), ...
- fullfile(out,'data_inventory.csv'));
-save(fullfile(out,'data.mat'),'data','inventory','-v7');
+% Prepare physical points and the existing training/validation/test split.
 
+matlab_folder = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(matlab_folder, 'common'));
+root = setup_matlab_paths('function_model');
+
+output_folder = fullfile(root, 'results', 'flux_fits');
+if ~isfolder(output_folder)
+    mkdir(output_folder);
+end
+
+input_file = fullfile(root, 'results', 'reduction_data.mat');
+require_analysis_file(input_file, 'run_matlab_analysis([],[],''prepare'')');
+loaded = load(input_file, 'data');
+measurements = loaded.data;
+
+data = cell(size(measurements));
+inventory = [];
+
+for dataset_index = 1:numel(measurements)
+    points = measurements{dataset_index};
+    [currents, flux, groups, excitation] = reduction_inputs(points);
+    group_count = numel(excitation);
+
+    dataset = struct;
+    dataset.name = sprintf('Set%d', dataset_index);
+    dataset.x = currents;
+    dataset.y = flux;
+    dataset.group = groups;
+    dataset.levels = excitation;
+    dataset.active = {'id', 'iq', 'ie'};
+    dataset.input_units = {'A', 'A', 'A'};
+    dataset.group_name = 'Nominal excitation';
+    dataset.group_unit = 'A';
+    dataset.temperature = points.stator_temperature;
+    dataset.speed = median(points.rpm_ref);
+    dataset.source = points.meta.source_files;
+    dataset.fixed_condition = 'Temperature was recorded but not controlled or corrected';
+
+    % Reserve the penultimate group as a training anchor below the upper boundary.
+    dataset.validation = ismember(groups, 2:4:(group_count - 2));
+    dataset.test = ismember(groups, 4:4:(group_count - 2));
+    dataset.boundary = groups == group_count;
+    dataset.train = ~(dataset.validation | dataset.test | dataset.boundary);
+
+    data{dataset_index} = dataset;
+    inventory = [inventory; ...
+        dataset_index, size(currents, 1), group_count, ...
+        nnz(dataset.train), nnz(dataset.validation), nnz(dataset.test), ...
+        nnz(dataset.boundary), min(dataset.temperature), max(dataset.temperature), ...
+        dataset.speed];
+end
+
+% Keep the existing optional temperature example as a separate reference case.
+fixture_file = fullfile(root, 'Resources', 'GUI_VICE-MeasurementEvalKit', ...
+    'SourceCode', 'tests', 'Artifacts', 'json_api_headless_real_run', ...
+    'psm_temperature', 'flux_psm_temperature_30C_70C.mat_result.mat');
+
+if isfile(fixture_file)
+    loaded = load(fixture_file, 'Total');
+    fixture = loaded.Total.pos_2500_rpm.pos_0_A.Meas;
+
+    currents = [fixture.PE_Id_meas_avg(:), fixture.PE_Iq_meas_avg(:), ...
+                fixture.CAN_T_Rot_max(:)];
+    omega = fixture.PE_w_el_rad_avg(:);
+    stator_resistance = fixture.Const_Machine_R_s(:);
+    flux = [
+        (fixture.PE_Uq_meas_avg(:) - stator_resistance .* currents(:, 2)) ./ omega, ...
+        (stator_resistance .* currents(:, 1) - fixture.PE_Ud_meas_avg(:)) ./ omega
+    ];
+
+    groups = 1 + (currents(:, 3) > 50);
+    normalized_currents = (currents(:, 1:2) - min(currents(:, 1:2))) ...
+        ./ (max(currents(:, 1:2)) - min(currents(:, 1:2)));
+    spatial_tile = min(floor(4 * normalized_currents(:, 1)), 3) ...
+        + 4 * min(floor(4 * normalized_currents(:, 2)), 3);
+    split_role = mod(spatial_tile, 5);
+
+    dataset = struct;
+    dataset.name = 'Temperature fixture';
+    dataset.x = currents;
+    dataset.y = flux;
+    dataset.group = groups;
+    dataset.levels = [30; 70];
+    dataset.active = {'id', 'iq', 'theta_rotor'};
+    dataset.input_units = {'A', 'A', 'deg C'};
+    dataset.group_name = 'Temperature band';
+    dataset.group_unit = 'deg C';
+    dataset.temperature = currents(:, 3);
+    dataset.speed = 2500;
+    dataset.source = ['Processed headless test artifact; absent acquisition fixture; ' ...
+                      'unverified physical provenance'];
+    dataset.fixed_condition = ['PSM-labelled artifact, nominal excitation 0 A; ' ...
+                               'no independent temperature holdout'];
+
+    dataset.validation = split_role == 1;
+    dataset.test = split_role == 3;
+    dataset.boundary = false(size(groups));
+    dataset.train = ~(dataset.validation | dataset.test);
+
+    data{end + 1} = dataset;
+    inventory = [inventory; ...
+        numel(data), size(currents, 1), 2, ...
+        nnz(dataset.train), nnz(dataset.validation), nnz(dataset.test), 0, ...
+        min(dataset.temperature), max(dataset.temperature), dataset.speed];
+else
+    fprintf(['Optional temperature fixture absent: %s\n' ...
+        'Continuing with the selected measured-current datasets.\n'], fixture_file);
+end
+
+for dataset_index = 1:numel(data)
+    dataset = data{dataset_index};
+    training_rows = dataset.train;
+    training_currents = dataset.x(training_rows, :);
+    training_flux = dataset.y(training_rows, :);
+    current_scale = max(abs(training_currents));
+
+    map = fit_reduction_map( ...
+        training_currents, training_flux, 8, [], current_scale, 81, true);
+    lut_values = reduction_lookup(map, dataset.x);
+    dataset.validation_support = all(isfinite(lut_values), 2) & dataset.validation;
+    data{dataset_index} = dataset;
+
+    fprintf(['%s: train %d, validation %d (%d LUT supported), ' ...
+        'test %d, upper boundary %d\n'], ...
+        dataset.name, nnz(training_rows), nnz(dataset.validation), ...
+        nnz(dataset.validation_support), nnz(dataset.test), nnz(dataset.boundary));
+end
+
+inventory_columns = {
+    'dataset', 'points', 'groups', 'training', 'validation', 'test', ...
+    'upper_boundary', 'temperature_min_C', 'temperature_max_C', 'requested_rpm'
+};
+writetable(array2table(inventory, 'VariableNames', inventory_columns), ...
+    fullfile(output_folder, 'data_inventory.csv'));
+save(fullfile(output_folder, 'data.mat'), 'data', 'inventory', '-v7');
 end

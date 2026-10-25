@@ -1,92 +1,187 @@
-function prepare_reduction_data
-%% Rebuild all three research datasets from acquisition channels.
-% Same arithmetic averaging and stationary flux formula for every dataset.
-% No new outlier decisions, fitted surfaces or productive GUI changes.
-root=setup_matlab_paths;
-out = fullfile(root,'results'); if ~isfolder(out), mkdir(out); end
-rawfiles = {{'Matlab_200.mat','Matlab_201.mat','Matlab_202.mat'}, ...
-    {'flux_eesm_excitation_0A.mat','flux_eesm_excitation_2A_to_40A.mat'}, ...
-    {'flux_eesm_excitation_3A_to_30A.mat'}};
-channels = {'PE_Id_meas_avg','PE_Iq_meas_avg','I_exc_meas', ...
-    'PE_Ud_meas_avg','PE_Uq_meas_avg','PE_w_el_rad_avg', ...
-    'PE_Id_req_meas','PE_Iq_req_meas','I_exc_req','PE_Rpm_req', ...
-    'CAN_RPM_meas','Const_Machine_R_s','Const_Machine_R_exc', ...
-    'Const_Machine_pole_pairs','CAN_T_Stat_max','CAN_T_Rot_max', ...
-    'Const_MACHINE_ID_param_none','MultiPhase_control_request_sel', ...
-    'Const_Current_Sensor_delay_param_sec','Const_Angle_Sensor_delay_param_sec', ...
-    'PE_I_AC_meas_Arms','CAN_U_AC_meas_Vrms'};
-data = cell(3,1); inventory = [];
-for s=1:3
-    values=[]; repeats=[]; file_id=[]; point_id=[]; sample_std=[]; omitted=0;
-    for f=1:numel(rawfiles{s})
-        file=fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'raw',rawfiles{s}{f});
-        require_analysis_file(file,'Restore the original acquisition MAT file under Resources/DataSets/Set*/raw; compact exports cannot replace acquisition channels.');
-        loaded=load(file); names=fieldnames(loaded); raw=loaded.(names{1});
-        names=erase({raw.Y.Name},' ');
-        ind=raw.Y(strcmp(names,'PE_Index_meas')).Data(:);
-        a=nan(numel(ind),numel(channels));
-        for j=1:numel(channels)
-            k=find(strcmp(names,channels{j}),1);
-            if ~isempty(k), a(:,j)=raw.Y(k).Data(:); end
-        end
-        keep=ind>0 & all(isfinite(a(:,1:14)),2);
-        omitted=omitted+nnz(~keep);
-        [key,~,group]=unique([a(keep,10),a(keep,9),ind(keep)],'rows');
-        averaged=nan(size(key,1),size(a,2)); sd=averaged;
-        for j=1:size(a,2)
-            averaged(:,j)=accumarray(group,a(keep,j),[],@mean);
-            sd(:,j)=accumarray(group,a(keep,j),[],@std);
-        end
-        values=[values;averaged]; repeats=[repeats;accumarray(group,1)];
-        sample_std=[sample_std;sd]; file_id=[file_id;f+zeros(size(key,1),1)];
-        point_id=[point_id;key(:,3)];
-    end
-    excitation=unique(values(:,9)); [~,groups]=ismember(values(:,9),excitation);
-    x=values(:,1:3); rs=values(:,12); omega=values(:,6);
-    psi=[(values(:,5)-rs.*x(:,2))./omega,(rs.*x(:,1)-values(:,4))./omega];
-    keep=all(isfinite([x psi]),2) & abs(omega)>1;
-    v=struct('x',x(keep,:),'psi',psi(keep,:),'groups',groups(keep), ...
-        'excitation',excitation,'values',values(keep,:),'channels',{channels}, ...
-        'sample_std',sample_std(keep,:),'repeats',repeats(keep), ...
-        'file_id',file_id(keep),'point_id',point_id(keep),'rawfiles',{rawfiles{s}}, ...
-        'omitted_samples',omitted,'software',version,'preprocessing', ...
-        'Arithmetic channel means per file/speed/excitation/index; index 0 excluded; no outlier rejection');
-    data{s}=v;
-    % Compact grouped research export, not a saved productive GUI/LUT state.
-    Total=struct;
-    for g=1:numel(excitation)
-        use=v.groups==g; speed=median(v.values(use,10));
-        block.Ref_Speed=speed;block.Ref_exc_current=excitation(g);
-        block.Meas=struct;
-        for j=1:numel(channels),block.Meas.(channels{j})=v.values(use,j)';end
-        block.Meas.PE_psi_d_meas=v.psi(use,1)';block.Meas.PE_psi_q_meas=v.psi(use,2)';
-        Total.(sprintf('pos_%g_rpm',speed)).(sprintf('pos_%g_A',excitation(g)))=block;
-    end
-    folder=fullfile(root,'Resources','DataSets',sprintf('Set%d',s),'extracted','evaluation');
-    if ~isfolder(folder),mkdir(folder);end
-    save(fullfile(folder,'research_flux_measurements.mat'),'Total','-v7');
-    for g=1:numel(excitation)
-        use=v.groups==g; a=v.values(use,:);
-        inventory=[inventory;s,excitation(g),nnz(use),sum(v.repeats(use)), ...
-            min(a(:,1:3)),max(a(:,1:3)),mean(a(:,3)),std(a(:,3)), ...
-            sqrt(mean((a(:,1:3)-a(:,7:9)).^2)), ...
-            min(a(:,11)),max(a(:,11)),median(a(:,12:14)), ...
-            min(a(:,15:16)),max(a(:,15:16))];
-    end
-    fprintf('Set%d: %d operating points, %d groups, %d excluded acquisition records\n', ...
-        s,size(v.x,1),numel(excitation),omitted);
-    % Standalone fresh flux export, including previously unavailable Set3.
-    writetable(array2table([v.groups,v.x,v.psi,v.values(:,7:10),v.repeats,v.file_id,v.point_id], ...
-        'VariableNames',{'group','id_A','iq_A','ie_A','psi_d_Vs','psi_q_Vs', ...
-        'id_requested_A','iq_requested_A','ie_nominal_A','rpm_requested','repetitions','file','point_index'}), ...
-        fullfile(out,sprintf('Set%d_flux_points.csv',s)));
-end
-audit=array2table(inventory,'VariableNames',{'set','ie_nominal_A','points','samples', ...
-    'id_min_A','iq_min_A','ie_min_A','id_max_A','iq_max_A','ie_max_A','ie_mean_A','ie_std_A', ...
-    'id_tracking_rms_A','iq_tracking_rms_A','ie_tracking_rms_A','rpm_min','rpm_max', ...
-    'Rs_ohm','Re_ohm','pole_pairs','stator_temp_min_C','rotor_temp_min_C', ...
-    'stator_temp_max_C','rotor_temp_max_C'});
-writetable(audit,fullfile(out,'data_inventory.csv'));
-save(fullfile(out,'reduction_data.mat'),'data','audit','channels','rawfiles','-v7');
+function data = prepare_reduction_data(files, input_type)
+% Import raw measurements or one Eval MAT into the common measurement struct.
+% Currents are in A, mechanical speeds in rpm, and flux linkages in Vs.
 
+if ischar(files) || isstring(files)
+    files = cellstr(files);
+end
+
+% Common field name             Source channel
+channel_map = {
+    'id_meas',                  'PE_Id_meas_avg'
+    'iq_meas',                  'PE_Iq_meas_avg'
+    'ie_meas',                  'I_exc_meas'
+    'rpm_meas',                 'CAN_RPM_meas'
+    'id_req',                   'PE_Id_req_meas'
+    'iq_req',                   'PE_Iq_req_meas'
+    'ie_req',                   'I_exc_req'
+    'rpm_req',                  'PE_Rpm_req'
+    'psi_d',                    'PE_psi_d_meas'
+    'psi_q',                    'PE_psi_q_meas'
+    'ud_meas',                  'PE_Ud_meas_avg'
+    'uq_meas',                  'PE_Uq_meas_avg'
+    'omega_el',                 'PE_w_el_rad_avg'
+    'stator_resistance',        'Const_Machine_R_s'
+    'stator_temperature',       'CAN_T_Stat_max'
+    'rotor_temperature',        'CAN_T_Rot_max'
+    'machine_id',               'Const_MACHINE_ID_param_none'
+    'phase_selector',           'MultiPhase_control_request_sel'
+    'current_sensor_delay',     'Const_Current_Sensor_delay_param_sec'
+    'angle_sensor_delay',       'Const_Angle_Sensor_delay_param_sec'
+    'i_ac_rms',                 'PE_I_AC_meas_Arms'
+    'point_id',                 'PE_Index_meas'
+};
+
+data = struct;
+for channel_index = 1:size(channel_map, 1)
+    field_name = channel_map{channel_index, 1};
+    data.(field_name) = zeros(0, 1);
+end
+data.ie_ref = zeros(0, 1);
+data.rpm_ref = zeros(0, 1);
+data.source_id = zeros(0, 1);
+data.repeats = zeros(0, 1);
+
+switch lower(input_type)
+    case 'raw'
+        data = prepare_raw_files(files, channel_map, data);
+
+    case 'eval'
+        if numel(files) ~= 1
+            error('Select one Eval file.');
+        end
+        data = load_eval_file(files{1}, channel_map, data);
+
+    otherwise
+        error('Use input_type ''raw'' or ''eval''.');
+end
+
+% Required physical quantities determine which points can be analyzed.
+% Missing optional channels do not remove an otherwise valid point.
+required_values = [data.id_meas, data.iq_meas, data.ie_meas, ...
+                   data.psi_d, data.psi_q];
+valid_points = all(isfinite(required_values), 2);
+point_rows = find(valid_points);
+
+% Sort every channel together; measured excitation remains unchanged.
+references = [data.rpm_ref(valid_points), data.ie_ref(valid_points)];
+[~, sort_order] = sortrows(references, [1 2]);
+point_rows = point_rows(sort_order);
+
+point_fields = fieldnames(data);
+for field_index = 1:numel(point_fields)
+    field_name = point_fields{field_index};
+    data.(field_name) = data.(field_name)(point_rows);
+end
+
+data.meta.source_files = files(:);
+end
+
+
+function data = prepare_raw_files(files, channel_map, data)
+% Average repetitions within each source file, then calculate stationary flux.
+
+point_fields = fieldnames(data);
+channel_count = size(channel_map, 1);
+
+for file_index = 1:numel(files)
+    loaded = load(files{file_index});
+    variable_names = fieldnames(loaded);
+    raw = loaded.(variable_names{1});
+    source_channels = erase({raw.Y.Name}, ' ');
+
+    index_channel = strcmp(source_channels, 'PE_Index_meas');
+    measurement_index = raw.Y(index_channel).Data(:);
+    sample_count = numel(measurement_index);
+
+    samples = struct;
+    for channel_index = 1:channel_count
+        field_name = channel_map{channel_index, 1};
+        source_name = channel_map{channel_index, 2};
+        source_index = find(strcmp(source_channels, source_name), 1);
+
+        channel_values = nan(sample_count, 1);
+        if ~isempty(source_index)
+            channel_values(:) = raw.Y(source_index).Data(:);
+        end
+        samples.(field_name) = channel_values;
+    end
+
+    flux_inputs = [samples.id_meas, samples.iq_meas, samples.ie_meas, ...
+                   samples.ud_meas, samples.uq_meas, samples.omega_el, ...
+                   samples.stator_resistance];
+    valid_samples = measurement_index > 0 & all(isfinite(flux_inputs), 2);
+
+    % The same index can occur at different speed/excitation requests.
+    grouping_keys = [samples.rpm_req(valid_samples), ...
+                     samples.ie_req(valid_samples), ...
+                     measurement_index(valid_samples)];
+    [group_keys, ~, group_index] = unique(grouping_keys, 'rows');
+
+    averaged = struct;
+    for channel_index = 1:channel_count
+        field_name = channel_map{channel_index, 1};
+        channel_values = samples.(field_name);
+        averaged.(field_name) = accumarray( ...
+            group_index, channel_values(valid_samples), [], @mean);
+    end
+
+    averaged.psi_d = (averaged.uq_meas ...
+        - averaged.stator_resistance .* averaged.iq_meas) ./ averaged.omega_el;
+    averaged.psi_q = (averaged.stator_resistance .* averaged.id_meas ...
+        - averaged.ud_meas) ./ averaged.omega_el;
+
+    low_speed = abs(averaged.omega_el) <= 1;
+    averaged.psi_d(low_speed) = NaN;
+    averaged.psi_q(low_speed) = NaN;
+
+    point_count = size(group_keys, 1);
+    averaged.ie_ref = group_keys(:, 2);
+    averaged.rpm_ref = group_keys(:, 1);
+    averaged.source_id = repmat(file_index, point_count, 1);
+    averaged.repeats = accumarray(group_index, 1);
+
+    % Concatenate only after averaging, so files cannot share repetitions.
+    for field_index = 1:numel(point_fields)
+        field_name = point_fields{field_index};
+        data.(field_name) = [data.(field_name); averaged.(field_name)];
+    end
+end
+end
+
+
+function data = load_eval_file(file, channel_map, data)
+% Copy saved Meas values and block references without averaging or refitting.
+
+loaded = load(file, 'Total');
+speed_fields = fieldnames(loaded.Total);
+speed_fields = speed_fields(endsWith(speed_fields, '_rpm'));
+
+for speed_index = 1:numel(speed_fields)
+    speed_block = loaded.Total.(speed_fields{speed_index});
+    excitation_fields = fieldnames(speed_block);
+    excitation_fields = excitation_fields(endsWith(excitation_fields, '_A'));
+
+    for excitation_index = 1:numel(excitation_fields)
+        block = speed_block.(excitation_fields{excitation_index});
+        measurements = block.Meas;
+        point_count = numel(measurements.PE_Id_meas_avg);
+
+        for channel_index = 1:size(channel_map, 1)
+            field_name = channel_map{channel_index, 1};
+            source_name = channel_map{channel_index, 2};
+
+            channel_values = nan(point_count, 1);
+            if isfield(measurements, source_name)
+                channel_values(:) = measurements.(source_name)(:);
+            end
+            data.(field_name) = [data.(field_name); channel_values];
+        end
+
+        data.ie_ref = [data.ie_ref; repmat(block.Ref_exc_current, point_count, 1)];
+        data.rpm_ref = [data.rpm_ref; repmat(block.Ref_Speed, point_count, 1)];
+        data.source_id = [data.source_id; ones(point_count, 1)];
+        data.repeats = [data.repeats; nan(point_count, 1)];
+    end
+end
 end

@@ -46,12 +46,12 @@ addpath('Resources/DataSets');
 export_measurements_json;
 ```
 
-`matlab/common/prepare_reduction_data.m` rebuilds `research_flux_measurements.mat` for
-all three sets from the raw channels. It contains arithmetically averaged
-operating points, measured currents, and stationary flux linkages calculated
-from measured dq voltages. It is a compact research export without production
-GUI or LUT state. Set3 is therefore included in the current study. Other
-historical exports are preserved.
+`matlab/common/prepare_reduction_data.m` returns the common measurement struct
+from a raw path/list (`'raw'`) or one saved Eval file (`'eval'`). Raw operating
+points use arithmetic channel means and stationary voltage-derived fluxes;
+Eval values are copied directly. `run_matlab_analysis` saves the selected
+structs in `results/reduction_data.mat`. Existing compact research exports
+and historical evaluations are preserved.
 
 Extract a single FluxEval file as MAT:
 

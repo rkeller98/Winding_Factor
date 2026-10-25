@@ -50,26 +50,94 @@ point calls only the two study entry points; it contains no calculation logic.
 `run_flux_function_study` remains a compatibility alias for
 `run_function_model_analysis` in `matlab/function_model/`.
 
-The k-factor study runs `prepare_reduction_data`, `analyze_winding_factors`,
-`validate_winding_factor`, `audit_reduction_sources`, `analyze_flux_map_reduction`,
-and `plot_reduction_study`, in that order.
-The function-model study prepares missing grouped measurements only if needed,
-then runs `prepare_flux_fit_data`, `fit_flux_rbf`, `fit_flux_bspline`,
+The entry point imports the selected inputs once into `results/reduction_data.mat`.
+The k-factor study runs `analyze_winding_factors`, `validate_winding_factor`,
+`analyze_flux_map_reduction`, and `plot_reduction_study`, in that order.
+`analyze_winding_factors` displays measured, reduced and reconstructed flux plots,
+signed error meshes/heatmaps per excitation group, full-range contour curves
+and 3-D contour diagnostics. Optional exports go to `results/contour_factor/`. The mean k still uses
+only the original 100 levels in the shaded 25--75% d-flux value interval.
+The 3-D scatter plots show the existing paired contour centroids and their q-current
+drift; they do not estimate a separate factor at fixed q-current. Their q-axis is
+the mean centroid current, so it does not span the measured q-current range.
+The contour plots open in one figure per dataset, with tabs for measured,
+shifted, reduced and reconstructed fields, errors, contour curves and 3-D diagnostics.
+The shifted tab retains the separate measured meshes and their excitation colours,
+replacing d-current by s = i_d + k i_e. The shared reduced field linearly
+interpolates the pooled shifted points; only exactly coincident coordinates are averaged.
+The measured, shifted, reconstructed and measured + reconstructed tabs have group
+checkboxes and All/None buttons. Visibility is shared across these four tabs and
+both flux components. The overlay shows measured fields as translucent excitation-coloured
+surfaces and reconstructed points on a thin dark mesh. Point colours and the colourbar
+show reconstructed minus measured flux: blue for negative, white for zero and red for
+positive errors, using the same limits as the error tabs. Each checkbox controls all
+three objects of its group together.
+The error tab contains one subtab per excitation group. Flux fields use open,
+coloured meshes. The d-flux 3-D panels put q-current on the horizontal axis and
+d-current (or reduced current s) on the other axis.
+Each error row shows a mesh, heatmap and density histogram of finite point errors,
+with mean, sample standard deviation, RMSE and point count. Contour legends
+identify the requested excitation currents of each group or adjacent group pair.
+
+Figures are saved only when an export format is explicitly supplied:
+
+```matlab
+analyze_winding_factors          % Display contour tabs; no image files
+analyze_winding_factors('png')   % Also save every contour tab as PNG
+analyze_winding_factors('pdf')   % Also save every contour tab as PDF
+% Optional fourth argument for a complete study:
+run_matlab_analysis([], 'raw', 'k_factor', 'pdf');
+```
+
+The plot functions `plot_reduction_study('pdf')` and
+`plot_flux_function_study('pdf')` accept the same optional format. The extension
+selects the format supported by MATLAB's `exportgraphics` (for example PNG,
+PDF or SVG). Omitting it disables image exports throughout the MATLAB workflow;
+MAT/CSV results are still saved. Explicit PNG exports also update the existing
+manuscript PNG copies. Contour exports contain individual tab layouts.
+The function-model study uses the same points and runs
+`prepare_flux_fit_data`, `fit_flux_rbf`, `fit_flux_bspline`,
 `fit_flux_baselines`, `compare_flux_fits`, `compare_fits_with_k_factor`, and
 `plot_flux_function_study`. The plot step also calls `write_flux_function_tables`.
 
 The function-model comparison uses its own training/validation fits for the LUT
-and k models A–G. These are different from the k-factor study's all-data and
-holdout fits and cannot replace them. For the additional all-data reference
-comparison, it reuses `results/flux_map_reduction.mat`; if missing, it imports
-only that file from `winding_factor_study/research_results.zip`, preserving other
-results. If neither source exists, the error gives the exact path and commands
-for `prepare_reduction_data; analyze_flux_map_reduction`. It never starts the
-other study's audit or plots. The combined run reuses the freshly generated
-reference and grouped inputs without repeating their preparation or fitting.
+and k models A–G. Historical comparisons remain separate: `audit_reduction_sources`
+requires the original Set1–3 inputs and full historical FluxEval files;
+`compare_fits_with_k_factor` additionally compares the original three sets with
+the saved all-data reference (or its archive). Regular runs call
+`compare_fits_with_k_factor(false)` to compare against their own trained LUT.
+
+Select paths at the top of `run_matlab_analysis.m`, or pass them directly:
+
+```matlab
+addpath(project);
+raw_files=fullfile(project,'Resources','DataSets','Set1','raw', ...
+    {'Matlab_200.mat','Matlab_201.mat','Matlab_202.mat'});
+run_matlab_analysis(raw_files,'raw');
+eval_file=fullfile(project,'Resources','DataSets','Set1','extracted', ...
+    'evaluation','Matlab_200_201_202_FluxEval_measurements.mat');
+run_matlab_analysis(eval_file,'eval');
+% Third argument: 'both' (default), 'k_factor', 'function_model', or 'prepare'.
+% Import alone, without saving or running a study:
+data=prepare_reduction_data(raw_files,'raw');
+data=prepare_reduction_data(eval_file,'eval');
+```
+
+Both imports return one ordinary struct with equally long column vectors:
+`id_meas`, `iq_meas`, `ie_meas`, `rpm_meas`, `id_req`, `iq_req`, `ie_req`,
+`rpm_req`, `psi_d`, `psi_q`, `ie_ref`, `rpm_ref` (A, mechanical rpm, Vs).
+Missing optional channels stay `NaN`; requests and group references are separate.
+Raw repeats are averaged per file/speed/excitation/index before the unchanged
+stationary voltage-based flux calculation. Eval values are copied directly.
+All point fields share the same filter and sorting by `rpm_ref`, then `ie_ref`.
+`source_id` indexes `meta.source_files`; `repeats` and `point_id` retain raw
+group information. Only channels used for flux calculation, temperatures and the
+existing machine audit are retained additionally. The study entry point stores
+a cell of these structs, with one map per selected dataset and reference speed;
+`reduction_inputs` derives numerical coordinates and excitation groups from them.
 
 All regular figures, including atlas figures, are created visibly and remain
-open after export. Each call creates new figures without closing previous ones.
+open. Each call creates new figures without closing previous ones.
 Temporary font/interpreter defaults are restored. LaTeX compilation remains separate.
 
 ```sh
@@ -77,16 +145,17 @@ matlab -batch "addpath('/absolute/path/to/Winding_Factor'); run_matlab_analysis"
 ```
 
 For a single-study batch run, add its folder and call its entry point instead.
-The batch commands produce the same exports; windows close when MATLAB exits.
+The batch commands use the same optional image export; windows close when MATLAB exits.
 
 ## File responsibilities
 
 | Folder | Files and responsibilities |
 | --- | --- |
-| `matlab/k_factor/` | `run_k_factor_analysis`, `analyze_winding_factors`, `validate_winding_factor`, `audit_reduction_sources`, `analyze_flux_map_reduction`, `plot_reduction_study` |
+| `matlab/k_factor/` | `run_k_factor_analysis`, `analyze_winding_factors`, `validate_winding_factor`, `audit_reduction_sources`, `analyze_flux_map_reduction`, `plot_reduction_study`; `estimate_contour_factor` calculates the conventional k factor |
+| `matlab/k_factor/` plotting | `plot_contour_factor` displays the existing constant-k reduction in one figure with tabs. Call `estimate_contour_factor(x,psi,groups)` without outputs to plot, or `[k,detail,fig]=estimate_contour_factor(x,psi,groups,true)` for values and the tabbed figure. Calls with outputs omit plots unless requested. |
 | `matlab/function_model/` | `run_function_model_analysis` (legacy alias `run_flux_function_study`), `prepare_flux_fit_data`, `fit_flux_rbf`, `fit_flux_bspline`, `fit_flux_baselines`, `compare_flux_fits`, `compare_fits_with_k_factor`, `plot_flux_function_study`, `write_flux_function_tables` |
 | `matlab/function_model/` helpers | `fit_flux_k_models` fits this study's k baselines; `eval_flux_model`, `flux_bspline_basis`, `flux_tensor_basis`, `flux_group_loss`, and `flux_model_size` support function-model fitting and evaluation |
-| `matlab/common/` | `prepare_reduction_data` is used by both studies; `estimate_contour_factor`, `fit_reduction_map`, `reduction_coordinates`, and `reduction_lookup` supply shared numerical operations; `setup_matlab_paths` and `require_analysis_file` handle paths and missing inputs |
+| `matlab/common/` | `prepare_reduction_data` is used by both studies; `fit_reduction_map`, `reduction_coordinates`, and `reduction_lookup` supply shared numerical operations; `setup_matlab_paths` and `require_analysis_file` handle paths and missing inputs |
 | `python/k_factor/` | Named Meas/raw importer, conventional contour estimator and study starter; derivative analysis, source audit, other coordinate models and plots remain placeholders |
 | `python/function_model/` | Placeholders for data splits, RBF/spline/baseline fits, both comparisons, plots/tables, and `run_function_model_analysis.py` |
 
@@ -100,8 +169,8 @@ addpath('/absolute/path/to/Winding_Factor/matlab/function_model');
 fit_flux_rbf   % Requires saved data.mat; the error names its preparation step.
 ```
 
-For shared preparation alone, add `matlab/common/` and call
-`prepare_reduction_data`. For a k-factor step, add `matlab/k_factor/` and call,
+For shared preparation alone, add the project root and call
+`run_matlab_analysis([],[],'prepare')`. For a k-factor step, add `matlab/k_factor/` and call,
 for example, `analyze_flux_map_reduction(2)`. Each analysis entry point bootstraps
 its common dependencies, has its own function workspace, and derives resource
 and output paths from its source location. Missing inputs are reported with
@@ -109,19 +178,19 @@ full paths and concrete preparation commands.
 
 | Entry point | Required inputs / preparation |
 | --- | --- |
-| `prepare_reduction_data` | Original Set1–3 files in `Resources/DataSets/Set*/raw/` |
-| `analyze_winding_factors`, `validate_winding_factor` | `results/reduction_data.mat` from `prepare_reduction_data` |
+| `prepare_reduction_data(files,type)` | One raw path/list (`'raw'`) or one full/compact Eval MAT with `Total` (`'eval'`) |
+| `analyze_winding_factors`, `validate_winding_factor` | `results/reduction_data.mat` from `run_matlab_analysis(...,'prepare')` |
 | `audit_reduction_sources` | Reduction data and complete historical FluxEval files; see below |
 | `analyze_flux_map_reduction` | Reduction data; optional `(1)`, `(2)`, or `(3)` selects one set; collects all completed saved sets |
 | `plot_reduction_study` | `reduction_data.mat`, `winding_validation.mat`, `flux_map_reduction.mat` |
-| `prepare_flux_fit_data` | Three `extracted/evaluation/research_flux_measurements.mat` files from `prepare_reduction_data` |
+| `prepare_flux_fit_data` | The same canonical `results/reduction_data.mat` |
 | `fit_flux_rbf`, `fit_flux_bspline`, `fit_flux_baselines` | `results/flux_fits/data.mat` from `prepare_flux_fit_data` |
 | `compare_flux_fits` | `data.mat`, `rbf_models.mat`, `bspline_models.mat`, `baseline_models.mat` in `results/flux_fits/` |
 | `compare_fits_with_k_factor` | `data.mat`, `comparison.mat`, and the A–H reference; extracts the winding study archive if the reference is missing |
 | `plot_flux_function_study` | Function-model data, comparison results, candidate CSVs from both fits, and comparison tables |
 | `write_flux_function_tables` | Saved function-model data and CSVs from both comparisons |
-| `run_k_factor_analysis` | Original raw data and complete historical audit sources; runs the first study |
-| `run_function_model_analysis` / `run_flux_function_study` | Grouped measurement data, or raw data to generate missing inputs; saved all-data reference or supplied archive |
+| `run_k_factor_analysis` | Default raw inputs; or a cell of canonical data structs |
+| `run_function_model_analysis` / `run_flux_function_study` | Default raw inputs; the former also accepts a cell of canonical data structs |
 
 Helpers requiring arguments are `fit_reduction_map`, `reduction_coordinates`,
 `reduction_lookup`, `estimate_contour_factor`, `fit_flux_k_models`, `eval_flux_model`,
@@ -140,16 +209,16 @@ not included in the repository:
 - `Resources/DataSets/Set2/FluxEval/eval_flux_eesm_excitation_0A_to_40A.mat`
 
 Compact Meas exports cannot replace their saved LUT/Calc coordinates.
-Without these originals, the shared entry point stops at the audit and reports
-the missing path. The second study can run separately using the existing grouped data.
+These files are needed only for the separately invoked historical audit.
 The optional temperature artifact is included only if it exists at
 `Resources/GUI_VICE-MeasurementEvalKit/SourceCode/tests/Artifacts/json_api_headless_real_run/psm_temperature/flux_psm_temperature_30C_70C.mat_result.mat`;
 otherwise Set1–3 are processed as before. It is not independent temperature
 validation. Replaying the archive retains the previously saved fourth case.
 
 MAT/CSV outputs remain in `results/` and `results/flux_fits/`;
-fresh grouped data remain in `Resources/DataSets/Set*/extracted/evaluation/`.
-PNG exports remain in `<study>/figures/` and `figures/atlas/`; generated LaTeX
+existing grouped exports remain in `Resources/DataSets/Set*/extracted/evaluation/`
+and are not overwritten by the importer.
+Requested image exports remain in `<study>/figures/` and `figures/atlas/`; generated LaTeX
 tables and atlas lists remain in the corresponding study folders.
 Saved models can be reused without refitting (extraction replaces results with the same names):
 
@@ -179,6 +248,7 @@ these Python classes. The four supplied MATLAB geometry functions
 `backend.numeric.geometry.{unique_edges,valid_edges,edge_intersections,triangle_intersections}`
 are supplementary resources. Each study adds only its own folder, `matlab/common/`, and
 `Resources/MeasEval/matlab/`. The combined entry point adds both study folders.
+The function-model study also adds `matlab/k_factor/` for its k-factor dependency.
 No GUI or repository paths are added recursively.
 
 Manuscripts and further provenance: [winding study](winding_factor_study/RUN.md),
@@ -306,7 +376,7 @@ that speed. No unknown groups are pooled or skipped. Results include `k`,
 make geometry failures inspectable. An undeterminable factor is `NaN` with
 `status="not_determinable"`; a failed group triangulation blocks the whole speed.
 
-The reference is `matlab/common/estimate_contour_factor.m` and section 3.2 of
+The reference is `matlab/k_factor/estimate_contour_factor.m` and section 3.2 of
 `winding_factor_study/main.tex`. Both specify the same estimator. Implementation
 details supplied by MATLAB are: inclusive 100 levels at 25--75% of the pooled
 flux **value range**, unique undirected Delaunay edges with squared length
