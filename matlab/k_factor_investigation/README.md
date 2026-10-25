@@ -11,6 +11,22 @@ In MATLAB R2025b vom Repository-Hauptordner:
 
 ```matlab
 addpath(fullfile(pwd,'matlab','k_factor_investigation'));
+study = run_k_factor_investigation; % alle Sets, insgesamt fünf Figures
+% Alternativ gezielt: run_k_factor_investigation(1)
+```
+
+Eine Figure je Set bündelt Konturverfahren, Flusssymmetrie, Statorwiderstand,
+lokale Faktoren und den Methodenvergleich in Tabs mit Diagnose-Untertabs.
+Die ideale Maschine und der Vergleich über die ausgewählten Sets haben jeweils
+eine eigene Figure. Wiederholte Aufrufe ersetzen nur den jeweiligen Plot-Tab;
+sie öffnen keine weiteren Figures für dasselbe Set. Die Auswahl der
+Erregerstromgruppen gilt gemeinsam für alle räumlichen Faktor-Tabs.
+Konturverfahren und Differentialfaktoren werden nach getrennten Kriterien
+verglichen; Quantilstriche beschreiben Kennfeldstreuung, keine Unsicherheit.
+
+Die bisherigen Einzelaufrufe ergänzen dieselben Set-Figures:
+
+```matlab
 ideal = investigate_ideal_machine;
 averaging = investigate_contour_averaging(1,[6 7],50);
 symmetry = investigate_flux_symmetry(1,[6 7]);

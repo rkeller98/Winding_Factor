@@ -51,11 +51,10 @@ study.nominal_excitation = excitation(group_indices);
 study.level_index = level_index;
 locations = study.locations;
 departures = study.flux_departure;
-figures = gobjects(2,1);
-figures(1) = figure('Name',sprintf('Set%d contour averaging',set_index), ...
-    'Color','w','Position',[70 80 1320 760],'Visible','on');
-theme(figures(1), 'light');
-layout = tiledlayout(figures(1),2,2,'TileSpacing','compact');
+[figures,plot_tab] = investigation_tab(set_index,'Konturverfahren','Konturen und Abtastung');
+layouts = gobjects(3,1);
+layouts(1) = tiledlayout(plot_tab,2,2,'TileSpacing','compact');
+layout = layouts(1);
 colors = lines(4);
 markers = {'o','s','d','^'};
 for j = 1:2
@@ -109,10 +108,9 @@ study.reference_mean = reshape(reference.means(group_indices,level_index,:),2,3)
 study.reference_mean_difference = squeeze(locations(:,1,:))-study.reference_mean;
 q = study.fixed_iq.q;
 counts = study.fixed_iq.root_counts;
-figures(2) = figure('Name',sprintf('Set%d averaging and fixed-iq comparison',set_index), ...
-    'Color','w','Position',[100 110 1320 740],'Visible','on');
-theme(figures(2), 'light');
-layout = tiledlayout(figures(2),2,2,'TileSpacing','compact');
+[~,plot_tab] = investigation_tab(set_index,'Konturverfahren','Mittelwerte und fixed iq');
+layouts(2) = tiledlayout(plot_tab,2,2,'TileSpacing','compact');
+layout = layouts(2);
 ax = nexttile(layout);
 hold(ax,'on');
 plot(ax,1:10,squeeze(locations(:,:,1))','o-');
@@ -213,10 +211,9 @@ study.level_comparison.queried_iq_ranges = q_ranges;
 fprintf('All methods on the three original levels (A/A):\n');
 disp(array2table(comparison_k,'VariableNames',matlab.lang.makeValidName(study.methods), ...
     'RowNames',compose('level_%d',comparison_indices)));
-figures(3) = figure('Name',sprintf('Set%d contour methods across levels',set_index), ...
-    'Color','w','Position',[130 140 1050 600],'Visible','on');
-theme(figures(3),'light');
-ax = axes(figures(3));
+[~,plot_tab] = investigation_tab(set_index,'Konturverfahren','Vergleich über Flussniveaus');
+layouts(3) = tiledlayout(plot_tab,1,1,'TileSpacing','compact');
+ax = nexttile(layouts(3));
 hold(ax,'on');
 plot(ax,levels(comparison_indices),comparison_k(:,1:4),'o-');
 errorbar(ax,levels(comparison_indices),fixed_ranges(:,2), ...
@@ -230,12 +227,61 @@ title(ax,{'Three original levels; measured i_e differences used throughout', ...
     'Direct fixed-q contour roots differ from existing Method B prediction optimization'});
 fprintf('Fixed-q factors use interpolated measured i_e, not nominal group-reference differences.\n');
 fprintf('Direct fixed-q contour matching is distinct from existing Method B fixed-q prediction optimization.\n');
+[~,plot_tab] = investigation_tab(set_index,'Konturverfahren','Einzelmethoden');
+method_tabs = uitabgroup(plot_tab);
+for m = 1:numel(study.methods)
+    tab = uitab(method_tabs,'Title',study.methods{m});
+    layouts(end+1) = tiledlayout(tab,1,2,'TileSpacing','compact');
+    ax = nexttile(layouts(end));
+    hold(ax,'on');
+    for j = 1:2
+        geometry = study.group(j);
+        if m >= 9
+            geometry = geometry.thinned;
+        end
+        samples = geometry.points;
+        if ismember(m,5:7)
+            samples = geometry.arc_samples;
+        elseif m == 8
+            samples = geometry.equal_segment_samples;
+        end
+        plot(ax,[geometry.a(:,1) geometry.b(:,1)]', ...
+            [geometry.a(:,2) geometry.b(:,2)]','Color',colors(j,:),'HandleVisibility','off');
+        plot(ax,samples(:,1),samples(:,2),'.','Color',colors(j,:),'HandleVisibility','off');
+        plot(ax,locations(j,m,1),locations(j,m,2),'o','MarkerSize',9, ...
+            'MarkerFaceColor',colors(j,:),'Color',colors(j,:), ...
+            'DisplayName',sprintf('%g A Soll; mean/representative ie=%.4g A', ...
+            excitation(group_indices(j)),locations(j,m,3)));
+    end
+    xlabel(ax,'i_d in A');
+    ylabel(ax,'i_q in A');
+    axis(ax,'equal');
+    grid(ax,'on');
+    legend(ax,'Location','best');
+    title(ax,{study.methods{m},sprintf('Niveau %.4g mVs, signed k=%.5g A/A',1000*level,study.signed_k(m))});
+    ax = nexttile(layouts(end));
+    hold(ax,'on');
+    plot(ax,1000*levels(comparison_indices),comparison_k(:,m),'o-','LineWidth',1.4, ...
+        'DisplayName',study.methods{m});
+    plot(ax,1000*levels(comparison_indices),comparison_k(:,1),'k--', ...
+        'DisplayName','Referenz: Schnittpunktmittel');
+    errorbar(ax,1000*levels(comparison_indices),fixed_ranges(:,2), ...
+        fixed_ranges(:,2)-fixed_ranges(:,1),fixed_ranges(:,3)-fixed_ranges(:,2),'s:', ...
+        'DisplayName','fixed iq: Median und Min/Max über iq');
+    xlabel(ax,'Konturlevel psi_d in mVs');
+    ylabel(ax,'Vorzeichenbehaftetes k in A/A');
+    grid(ax,'on');
+    legend(ax,'Location','best');
+    title(ax,{'Vergleich über drei Flussniveaus', ...
+        'fixed-iq-Abdeckung und Mehrdeutigkeiten im gemeinsamen Diagnose-Tab'});
+end
+method_tabs.SelectedTab = method_tabs.Children(end);
 drawnow;
 if ~isempty(export_format)
-    for i = 1:numel(figures)
-        export_analysis_plot(figures(i),fullfile(root,'matlab','k_factor_investigation','results', ...
+    for i = 1:numel(layouts)
+        export_investigation_plot(layouts(i),fullfile(root,'matlab','k_factor_investigation','results', ...
             sprintf('contour_averaging_set%d_g%d_%d_level%d_%d.png', ...
-            set_index,group_indices,level_index,i)),export_format,150);
+            set_index,group_indices,level_index,i)),export_format);
     end
 end
 end

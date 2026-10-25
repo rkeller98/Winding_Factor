@@ -93,10 +93,8 @@ for j = 1:numel(group_indices)
     fprintf('Set%d, nominal %g A: %d/%d mirror pairs; RMS d-even residual %.6g mVs, q-odd residual %.6g mVs; RMS mirror delta ie %.6g A.\n', ...
         set_index,excitation(g),nnz(common),numel(common),1000*rms_d,1000*rms_q,sqrt(mean(delta_ie.^2)));
     if make_plots
-        fig = figure('Visible','on','Name',sprintf('Set%d symmetry, nominal %g A',set_index,excitation(g)), ...
-            'Position',[80 70 1300 760]);
-        theme(fig,'light');
-        layout = tiledlayout(fig,2,3,'TileSpacing','compact');
+        [fig,plot_tab] = investigation_tab(set_index,'Flusssymmetrie',sprintf('%g A (Soll)',excitation(g)));
+        layout = tiledlayout(plot_tab,2,3,'TileSpacing','compact');
         fields = {1000*item.psi_d_even,1000*item.psi_d_odd, ...
             1000*reshape(item.d_residual,size(D)),1000*item.psi_q_odd,1000*item.psi_q_even,item.ie_difference};
         names = {'d-flux even part (mVs)','d-flux odd part (mVs)','d mirror difference (mVs)', ...
@@ -120,9 +118,9 @@ for j = 1:numel(group_indices)
             end
         end
         title(layout,sprintf('Set%d: nominal %g A; identical i_d and |i_q|, measured i_e may differ',set_index,excitation(g)));
-        figures(end+1,1) = fig;
+        figures = fig;
         if ~isempty(export_format)
-            export_analysis_plot(fig,fullfile(folder,'results',sprintf('symmetry_set%d_group%d',set_index,g)),export_format,150);
+            export_investigation_plot(layout,fullfile(folder,'results',sprintf('symmetry_set%d_group%d',set_index,g)),export_format);
         end
     end
 end

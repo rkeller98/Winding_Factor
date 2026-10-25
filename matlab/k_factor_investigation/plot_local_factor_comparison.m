@@ -9,10 +9,8 @@ end
 rows = local.groups == group;
 common = rows & local.common_scalar;
 x = local.x;
-fig = figure('Visible', 'on', 'Name', sprintf('Set%d: scalar factor comparison', local.set), ...
-    'Position', [80 80 1250 800]);
-theme(fig, 'light');
-t = tiledlayout(fig, 2, 2, 'TileSpacing', 'compact');
+[fig,plot_tab] = investigation_tab(local.set,'Lokale Faktoren','Differenzen und Gruppen');
+t = tiledlayout(plot_tab, 2, 2, 'TileSpacing', 'compact');
 ax = nexttile(t);
 scatter(ax, x(common, 1), x(common, 2), 20, ...
     local.kd_from_psi_q(common)-local.kd_from_psi_d(common), 'filled');
@@ -46,11 +44,11 @@ legend(ax, {'k_d^{(\psi_d)}', 'k_d^{(\psi_q)}', 'k_{LS}', ...
     'Global contour', 'Global derivative'}, 'Location', 'best');
 title(t, sprintf('Set%d, nominal i_e = %g A: denominator masks, no clipping or extrapolation', ...
     local.set, local.excitation(group)));
-colormap(fig, turbo(256));
+set(findall(plot_tab,'Type','axes'),'Colormap',turbo(256));
 if ~isempty(export_format)
     root = fileparts(fileparts(fileparts(mfilename('fullpath'))));
     addpath(fullfile(root, 'matlab', 'common'));
-    export_analysis_plot(fig, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
-        sprintf('local_comparison_set%d_group%02d', local.set, group)), export_format, 150);
+    export_investigation_plot(t, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
+        sprintf('local_comparison_set%d_group%02d', local.set, group)), export_format);
 end
 end

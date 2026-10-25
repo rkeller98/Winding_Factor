@@ -182,9 +182,8 @@ fprintf('iq=0 is a special low-sensitivity case; varying measured omega and line
 study.summary_columns = {'delta_R_ohm','global_contour_k','fixed_level_edge_signed_k','fixed_q_signed_k', ...
     'centroid_iq_drift','d_mirror_residual_rms_Vs','q_mirror_residual_rms_Vs', ...
     'median_local_LS','global_derivative_k','median_reciprocity_H','median_component_d','median_component_q'};
-fig = figure('Visible','on','Name',sprintf('Set%d resistance sensitivity',set_index),'Position',[70 60 1300 800]);
-theme(fig,'light');
-layout = tiledlayout(fig,2,3,'TileSpacing','compact');
+[fig,plot_tab] = investigation_tab(set_index,'Statorwiderstand','Sensitivität');
+layout = tiledlayout(plot_tab,2,3,'TileSpacing','compact');
 ax = nexttile(layout);
 plot(ax,delta_R,study.summary(:,2),'o-');
 ylabel(ax,'global contour k (A/A)');
@@ -213,13 +212,13 @@ ylabel(ax,'local LS median, common support (A/A)');
 ax = nexttile(layout);
 plot(ax,delta_R,1000*study.summary(:,10),'o-');
 ylabel(ax,'median L_{dq}-L_{qd} (mH)');
-for ax = findall(fig,'Type','axes')'
+for ax = findall(plot_tab,'Type','axes')'
     xlabel(ax,'constant delta R_s in ohm');
     grid(ax,'on');
 end
 title(layout,sprintf('Set%d: offsets around original pointwise Rs; pair lambda=%.5g Vs, iq=%.5g A',set_index,level,iq_query));
 figures = fig;
 if ~isempty(export_format)
-    export_analysis_plot(fig,fullfile(folder,'results',sprintf('resistance_set%d',set_index)),export_format,150);
+    export_investigation_plot(layout,fullfile(folder,'results',sprintf('resistance_set%d',set_index)),export_format);
 end
 end

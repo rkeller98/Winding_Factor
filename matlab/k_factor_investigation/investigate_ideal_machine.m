@@ -148,11 +148,10 @@ for h = 1:numel(names)
             max(abs(pair.group(2).delaunay_crossing_residual)));
     end
 end
-figures = gobjects(2,1);
-figures(1) = figure('Name','Ideal machine: contour geometry','Color','w', ...
-    'Position',[60 70 1350 800],'Visible','on');
-theme(figures(1),'light');
-layout = tiledlayout(figures(1),2,2,'TileSpacing','compact');
+[figures,plot_tab] = investigation_tab('Ideale Maschine','Referenzfälle','Konturen');
+layouts = gobjects(2,1);
+layouts(1) = tiledlayout(plot_tab,2,2,'TileSpacing','compact');
+layout = layouts(1);
 selected = [1 2 3 7];
 colors = lines(2);
 for panel = 1:numel(selected)
@@ -184,10 +183,9 @@ for panel = 1:numel(selected)
         pair.signed_k(1),k0)});
     legend(ax,'Location','best','FontSize',7);
 end
-figures(2) = figure('Name','Ideal machine: estimator bias sources','Color','w', ...
-    'Position',[90 100 1400 850],'Visible','on');
-theme(figures(2),'light');
-layout = tiledlayout(figures(2),2,2,'TileSpacing','compact');
+[~,plot_tab] = investigation_tab('Ideale Maschine','Referenzfälle','Methodenvergleich und Fehlerquellen');
+layouts(2) = tiledlayout(plot_tab,2,2,'TileSpacing','compact');
+layout = layouts(2);
 summary = nan(numel(names),6);
 qmeans = nan(numel(names),2);
 moments = nan(numel(names),2);
@@ -221,7 +219,7 @@ bar(ax,terms,'stacked');
 ylabel(ax,'signed edge k minus k_0 (A/A)');
 legend(ax,{'second moment term','analytic interpolation residual term'},'Location','best');
 title(ax,'Exact algebraic decomposition of the observed edge bias');
-all_axes = findall(figures(2),'Type','axes');
+all_axes = findall(plot_tab,'Type','axes');
 for i = 1:numel(all_axes)
     xticks(all_axes(i),1:numel(names));
     xticklabels(all_axes(i),names);
@@ -234,9 +232,9 @@ fprintf('The controlled row-cell diagonal example has coplanar d-flux cell verti
 fprintf('Exact-contour projected means hold the intersection q weights fixed and remove only analytic interpolation residual.\n');
 fprintf('No material loss, resistance error, or physical non-reducibility is present in these examples.\n');
 if ~isempty(export_format)
-    for i = 1:numel(figures)
-        export_analysis_plot(figures(i),fullfile(root,'matlab','k_factor_investigation','results', ...
-            sprintf('ideal_machine_%d.png',i)),export_format,150);
+    for i = 1:numel(layouts)
+        export_investigation_plot(layouts(i),fullfile(root,'matlab','k_factor_investigation','results', ...
+            sprintf('ideal_machine_%d.png',i)),export_format);
     end
 end
 end

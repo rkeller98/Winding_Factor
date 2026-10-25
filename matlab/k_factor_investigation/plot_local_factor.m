@@ -18,27 +18,36 @@ end
 if nargin < 5
     export_format = '';
 end
+plot_name = field_name;
+if strcmp(field_name,'k_{loc}')
+    plot_name = 'k LS';
+end
 if ischar(values) || isstring(values)
     switch char(values)
         case 'psi_d'
             values = local.kd_from_psi_d;
             field_name = 'k_d^{(\psi_d)}';
+            plot_name = 'k aus psi_d';
             valid = local.valid_psi_d;
         case 'psi_q'
             values = local.kd_from_psi_q;
             field_name = 'k_d^{(\psi_q)}';
+            plot_name = 'k aus psi_q';
             valid = local.valid_psi_q;
         case 'ls'
             values = local.klocal;
             field_name = 'k_{LS}';
+            plot_name = 'k LS';
             valid = local.valid_local;
         case 'kd'
             values = local.kd;
             field_name = 'k_d (two-axis)';
+            plot_name = 'k_d (2-achsig)';
             valid = local.valid_pair;
         case 'kq'
             values = local.kq;
             field_name = 'k_q (two-axis)';
+            plot_name = 'k_q (2-achsig)';
             valid = local.valid_pair;
     end
 end
@@ -51,15 +60,13 @@ valid = valid(:) & isfinite(values) & all(isfinite(x), 2);
 ng = numel(local.excitation);
 scale = max(abs(x(:, 1:2)), [], 1);
 scale(scale == 0) = 1;
-fig = figure('Visible', 'on', 'Name', sprintf('Set%d: local factor %s', local.set, field_name), ...
-    'Tag', 'local_factor', 'Position', [60 60 1250 780]);
-theme(fig, 'light');
-ax = axes(fig, 'Position', [.08 .11 .60 .79]);
+[fig,plot_tab,method_tab] = investigation_tab(local.set,'Lokale Faktoren',plot_name);
+ax = axes(plot_tab, 'Position', [.08 .11 .60 .79]);
 hold(ax, 'on');
 meshes = gobjects(ng, 1);
 points = gobjects(ng, 1);
 checks = gobjects(ng, 1);
-panel = uipanel(fig, 'Title', 'Erregerstromgruppen', 'Units', 'normalized', ...
+panel = uipanel(plot_tab, 'Title', 'Erregerstromgruppen', 'Units', 'normalized', ...
     'Position', [.83 .04 .16 .92]);
 uicontrol(panel, 'Style', 'pushbutton', 'String', 'Alle', 'Tag', 'show_all_groups', ...
     'Units', 'normalized', 'Position', [.04 .92 .43 .05], 'Callback', @(~, ~) show_all(true));
@@ -68,6 +75,11 @@ uicontrol(panel, 'Style', 'pushbutton', 'String', 'Keine', 'Tag', 'hide_all_grou
 height = min(.055, .82/ng);
 
 for g = 1:ng
+    previous = findall(method_tab,'Tag',sprintf('local_group_%02d',g));
+    visible = true;
+    if ~isempty(previous)
+        visible = logical(previous(1).Value);
+    end
     rows = find(local.groups == g);
     xy = x(rows, 1:2)./scale;
     % Triangulate ALL original points first. Removing invalid vertices later
@@ -89,10 +101,13 @@ for g = 1:ng
     points(g) = scatter3(ax, x(rows, 1), x(rows, 2), values(rows), 9, x(rows, 3), ...
         'filled', 'Tag', sprintf('local_points_%02d', g));
     checks(g) = uicontrol(panel, 'Style', 'checkbox', 'String', ...
-        sprintf('%g A (Soll)', local.excitation(g)), 'Value', 1, 'Units', 'normalized', ...
+        sprintf('%g A (Soll)', local.excitation(g)), 'Value', double(visible), 'Units', 'normalized', ...
         'Position', [.04 .87-g*height .94 height], 'Tag', sprintf('local_group_%02d', g), ...
         'Callback', @(source, ~) show_group(g, logical(source.Value)));
+    show_group(g,visible);
 end
+uicontrol(panel,'Style','text','String',{'Auswahl gilt in allen','Faktor-Tabs.'}, ...
+    'Units','normalized','Position',[.04 .01 .92 .07]);
 xlabel(ax, 'i_d in A');
 ylabel(ax, 'i_q in A');
 zlabel(ax, sprintf('%s in A/A', field_name));
@@ -109,8 +124,8 @@ if ~isempty(export_format)
     root = fileparts(fileparts(fileparts(mfilename('fullpath'))));
     addpath(fullfile(root, 'matlab', 'common'));
     name = regexprep(field_name, '[^a-zA-Z0-9]', '');
-    export_analysis_plot(ax, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
-        sprintf('local_%s_set%d', name, local.set)), export_format, 150);
+    export_investigation_plot(ax, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
+        sprintf('local_%s_set%d', name, local.set)), export_format);
 end
 
     function show_group(g, visible)
@@ -118,7 +133,9 @@ end
         if visible
             state = 'on';
         end
-        set([meshes(g); points(g)], 'Visible', state);
+        set(findall(method_tab,'Tag',sprintf('local_mesh_%02d',g)),'Visible',state);
+        set(findall(method_tab,'Tag',sprintf('local_points_%02d',g)),'Visible',state);
+        set(findall(method_tab,'Tag',sprintf('local_group_%02d',g)),'Value',double(visible));
     end
 
     function show_all(visible)
