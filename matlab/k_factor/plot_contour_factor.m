@@ -27,18 +27,19 @@ for group_index = 1:numel(group_ids)
     triangles{group_index} = measurement_triangles( ...
         currents(group_rows, 1:2), current_scale(1:2));
 end
+reduction.triangles = triangles;
 
 fig = figure('Visible', 'on', 'Name', 'Contour-factor analysis', ...
     'Tag', 'contour_factor', 'Position', [30 30 1500 900]);
 theme(fig, 'light');
 tabs = uitabgroup(fig, 'Tag', 'contour_tabs');
 
-measured_tab = uitab(tabs, 'Title', 'Messwerte', 'Tag', 'measured_flux');
-shifted_tab = uitab(tabs, 'Title', 'Verschobene Messfelder', 'Tag', 'shifted_flux');
-reduced_tab = uitab(tabs, 'Title', 'Reduzierte Felder', 'Tag', 'reduced_flux');
-reconstructed_tab = uitab(tabs, 'Title', 'Rekonstruktion', 'Tag', 'reconstructed_flux');
-comparison_tab = uitab(tabs, 'Title', 'Messung + Rekonstruktion', 'Tag', 'measured_reconstructed_flux');
-error_tab = uitab(tabs, 'Title', 'Fehler');
+measured_tab = uitab(tabs, 'Title', 'Measured flux maps', 'Tag', 'measured_flux');
+shifted_tab = uitab(tabs, 'Title', 'Shifted measured maps', 'Tag', 'shifted_flux');
+reduced_tab = uitab(tabs, 'Title', 'Fixed reduced reference map', 'Tag', 'reduced_flux');
+reconstructed_tab = uitab(tabs, 'Title', 'Reconstruction', 'Tag', 'reconstructed_flux');
+comparison_tab = uitab(tabs, 'Title', 'Measured + reconstructed', 'Tag', 'measured_reconstructed_flux');
+error_tab = uitab(tabs, 'Title', 'Reconstruction error');
 error_tabs = uitabgroup(error_tab);
 excitation_limits = [min(currents(:, 3)), max(currents(:, 3))];
 excitation_fraction = (currents(:, 3) - excitation_limits(1)) ...
@@ -65,19 +66,19 @@ for field_index = 1:numel(field_tabs)
     plot_panel = uipanel(plot_tab, 'BorderType', 'none', ...
         'Units', 'normalized', 'Position', [0 0 0.86 1]);
     layout = tiledlayout(plot_panel, 1, 2, 'TileSpacing', 'compact');
-    selection_panel = uipanel(plot_tab, 'Title', 'Felder anzeigen', ...
+    selection_panel = uipanel(plot_tab, 'Title', 'Excitation groups', ...
         'FontSize', 11, 'Units', 'normalized', 'Position', [0.86 0.02 0.14 0.96]);
     show_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
-        'String', 'Alle', 'Tag', 'show_all_fields', ...
+        'String', 'All', 'Tag', 'show_all_fields', ...
         'Units', 'normalized', 'Position', [0.05 0.92 0.42 0.05]);
     hide_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
-        'String', 'Keine', 'Tag', 'hide_all_fields', ...
+        'String', 'None', 'Tag', 'hide_all_fields', ...
         'Units', 'normalized', 'Position', [0.53 0.92 0.42 0.05]);
     row_height = min(0.05, 0.75 / numel(group_ids));
     for group_index = 1:numel(group_ids)
-        group_name = sprintf('Gruppe %d', group_index);
+        group_name = sprintf('Group %d', group_index);
         if ~isempty(excitation)
-            group_name = sprintf('%g A (Soll)', excitation(group_index));
+            group_name = sprintf('%g A (reference)', excitation(group_index));
         end
         group_checks(group_index, field_index) = uicontrol(selection_panel, ...
             'Style', 'checkbox', 'String', group_name, 'Value', 1, 'FontSize', 11, ...
@@ -86,7 +87,7 @@ for field_index = 1:numel(field_tabs)
             'Position', [0.05 0.87 - group_index * row_height 0.9 row_height]);
     end
     uicontrol(selection_panel, 'Style', 'text', 'FontSize', 10, ...
-        'String', {'Auswahl gilt in allen', 'Feld-Tabs.'}, ...
+        'String', {'Selection applies to', 'all flux-map tabs.'}, ...
         'Units', 'normalized', 'Position', [0.05 0.01 0.9 0.08]);
     values = field_values{field_index};
     plot_currents = currents;
@@ -143,7 +144,7 @@ for field_index = 1:numel(field_tabs)
                 'Color', [0.12 0.12 0.12], 'LineWidth', 0.6, ...
                 'MarkerFaceColor', 'white', 'MarkerEdgeColor', 'none');
             legend([measured_key, reconstructed_key], ...
-                {'Messung (Fläche)', 'Rekonstruktion (Fehlerfarbe)'}, 'Location', 'southoutside', ...
+                {'Measured (surface)', 'Reconstructed (error color)'}, 'Location', 'southoutside', ...
                 'Orientation', 'horizontal', 'FontSize', 10, 'AutoUpdate', 'off');
         end
 
@@ -216,7 +217,7 @@ for component = 1:2
 end
 
 set(findall(reduced_tab, 'Type', 'axes'), 'Colormap', parula(256));
-title(layout, sprintf('Shared F(s, i_q), k = %.5f A/A; no extrapolation', k));
+title(layout, sprintf('Fixed reduced reference map F_A(s, i_q); k_A = %.5f A/A; no extrapolation', k));
 
 % Plot signed reconstruction error on each original excitation group's mesh.
 % The heatmap is a top view of that mesh, with no extra fitted error field.
@@ -226,9 +227,9 @@ for group_index = 1:numel(group_ids)
     group_error = 1000 * flux_error(group_rows, :);
     mesh = triangles{group_index};
 
-    group_title = sprintf('Gruppe %d', group_index);
+    group_title = sprintf('Group %d', group_index);
     if ~isempty(excitation)
-        group_title = sprintf('%s: %g A (Soll)', group_title, excitation(group_index));
+        group_title = sprintf('%s: %g A (reference)', group_title, excitation(group_index));
     end
     plot_tab = uitab(error_tabs, ...
         'Title', group_title, ...
@@ -294,10 +295,10 @@ for group_index = 1:numel(group_ids)
     title(layout, sprintf('Reconstructed - measured | %s', group_title));
 end
 
-contour_tab = uitab(tabs, 'Title', 'k-Verlauf', 'Tag', 'contours');
+contour_tab = uitab(tabs, 'Title', 'Contour factor', 'Tag', 'contours');
 plot_contour_curves(contour_tab, k, contour, excitation);
 
-q_tab = uitab(tabs, 'Title', '3D-Diagnose', 'Tag', 'contour_q_dependence');
+q_tab = uitab(tabs, 'Title', '3D diagnostics', 'Tag', 'contour_q_dependence');
 plot_q_dependence(q_tab, contour);
 
 tabs.SelectedTab = measured_tab;
@@ -319,7 +320,7 @@ full = contour.full_range;
 flux_levels = 1000 * full.levels;
 fit_limits = 1000 * contour.levels([1 end]);
 if isempty(excitation)
-    group_names = compose('Gruppe %d', (1:size(full.means, 1))');
+    group_names = compose('Group %d', (1:size(full.means, 1))');
 else
     group_names = compose('%g A', excitation(:));
 end

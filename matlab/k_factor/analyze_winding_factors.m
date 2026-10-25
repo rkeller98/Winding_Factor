@@ -30,6 +30,9 @@ for dataset_index = 1:numel(data)
     fig.Name = sprintf('Set%d: contour-factor analysis', dataset_index);
     fprintf('Set%d conventional factor: %.12f A/A\n', dataset_index, k);
 
+    add_pointwise_factor_views(fig, currents, flux, groups, excitation, ...
+        contour.reduction, dataset_index);
+
     if isempty(export_format)
         continue;
     end
