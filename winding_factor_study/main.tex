@@ -84,15 +84,29 @@ For finite endpoints on the same differentiable path,
 A secant is a path average. It becomes a pointwise derivative only in a suitable limit. The assumptions fail where the implicit path is singular, disconnected or cannot be parameterized by $i_e$.
 
 \subsection{The actual averaging procedure}
-The conventional estimator orders complete groups by increasing nominal excitation. Within each group, it triangulates measured $(i_d,i_q)$ points, rejects unusually long edges, and finds edge intersections with 100 d-flux levels spanning the middle 25--75\% of the pooled d-flux range. It averages intersection coordinates, including measured excitation, at each level. Adjacent-group ratios are then formed:
+The conventional estimator orders complete groups by increasing nominal excitation. Within each group, it triangulates measured $(i_d,i_q)$ points, rejects unusually long edges, and finds edge intersections with 100 d-flux levels spanning the middle 25--75\% of the pooled d-flux value range. All three measured current coordinates $(i_d,i_q,i_e)$ are interpolated at these intersections. Their arithmetic coordinate means are used; they are not arclength-weighted geometrical contour centroids. Adjacent-group ratios are then formed:
 \begin{equation}\label{eq:legacy}
 k_A=\operatorname{mean}_{g,\ell}\left[
 \frac{|\bar i_{d,g+1,\ell}-\bar i_{d,g,\ell}|}
 {\bar i_{e,g+1,\ell}-\bar i_{e,g,\ell}}\right].
 \end{equation}
-Only finite, numerically nonzero ratios enter the arithmetic mean. The absolute numerator removes directional information. Excitation ordering matters because the denominator retains its sign. The present implementation follows this rule rather than assuming an unsigned denominator or a geometrical turns ratio.
+Only finite, numerically nonzero ratios enter the arithmetic mean. The absolute numerator removes directional information. Excitation ordering matters because the denominator retains its sign. The present implementation follows this rule rather than assuming an unsigned denominator or a geometrical turns ratio. The interactive plots additionally evaluate 201 levels over the full pooled d-flux range for display. These additional levels do not enter $k_A$: its original 100 levels and aggregation rule are unchanged. The shaded interval denotes fractions of the flux value range, rather than quantiles of the measurement population.
 
-All intersection points lie on the interpolated contour, but their coordinate centroid generally does not: for a nonlinear function, evaluating it at the mean coordinate is not equivalent to averaging its values. Consequently, even~\eqref{eq:secant} need not apply to the two selected centroids. Their mean $i_q$ can also differ between groups. Triangulation, contour-level choice, sample density, coverage, edge filtering and the unweighted average of ratios all affect $k_A$. Points near densely intersected edges receive a different effective influence from points in sparsely sampled parts of a contour. Excluding the outer flux quarters during estimation does not validate applying the result there.
+All intersection points lie on the interpolated contour, but their coordinate centroid generally does not: for a nonlinear function, evaluating it at the mean coordinate is not equivalent to averaging its values. Consequently, even~\eqref{eq:secant} need not apply to the two selected centroids. Their mean $i_q$ can also differ between groups. Triangulation, contour-level choice, sample density, coverage, edge filtering and the unweighted average of ratios all affect $k_A$. Points near densely intersected edges receive a different effective influence from points in sparsely sampled parts of a contour. This geometry can move both $\bar i_q$ and $\bar i_d$, so it can directly change the numerator of~\eqref{eq:legacy}. Incomplete contours can contribute to this displacement. Whether these mechanisms explain a particular measured asymmetry requires a separate support and discretization investigation; symmetry is not imposed. Excluding the outer flux quarters during estimation does not validate applying the result there.
+
+For a level $\lambda$, the plotted q-current drift is
+\begin{equation}
+D_g(\lambda)=\frac{\bar i_{q,g+1}(\lambda)-\bar i_{q,g}(\lambda)}
+{\bar i_{e,g+1}(\lambda)-\bar i_{e,g}(\lambda)},\qquad
+\epsilon_g(\lambda)=\widetilde\psi_{d,g}(\bar i_{d,g},\bar i_{q,g})-\lambda,
+\end{equation}
+where $\widetilde\psi_{d,g}$ is the original group's interpolated d-flux surface. The departure $\epsilon_g$ is a contour-construction diagnostic, not a shared-table reconstruction error. It can be nonzero even when an exact coordinate reduction exists.
+
+The interactive 3-D scatter diagnostic places $\lambda$ on its first axis and
+\begin{equation}
+Q_g(\lambda)=\tfrac12\bigl(\bar i_{q,g}(\lambda)+\bar i_{q,g+1}(\lambda)\bigr)
+\end{equation}
+on its second axis. Its third axis is the existing absolute-numerator contour ratio or $D_g$, and its colour is the mean of the two measured-excitation centroids. Thus $Q_g$ is a mean of two already averaged q-coordinates; it is not a query at fixed physical $i_q$, need not span the measured q-current range and need not be symmetric. No local field $k(\psi_d,i_q)$ is identified by this display.
 
 For a generic ratio $r=A/B$, first-order uncertainty propagation is
 \begin{equation}

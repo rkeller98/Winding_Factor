@@ -1,118 +1,85 @@
-# Research execution, 24 October 2026
+# Running and maintaining the k-factor study
 
-Current layout: study entry points are in `matlab/k_factor/`, with shared
-preparation and numerical helpers in `matlab/common/`. In a fresh session use
-`addpath('/absolute/path/to/Winding_Factor/matlab/k_factor')` and call `run_k_factor_analysis`. For individual commands below, also add
-`/absolute/path/to/Winding_Factor/matlab/common` for shared data preparation. For both complete studies, add the project root and call
-`run_matlab_analysis`. Input/output locations are unchanged; figures now stay open.
-The full historical Set1/2 FluxEval files required by the source audit are local
-inputs, not included in the compact exports; see the [project README](../README.md).
+The numerical reference is `matlab/k_factor/estimate_contour_factor.m`.
+Its original 100 levels, arithmetic edge-intersection means, edge cutoff,
+absolute numerator, signed denominator and aggregation are retained.
+The 25 October 2026 cleanup reproduced all six contour fields and the saved
+40/80/120-neighbour derivative studies exactly for Sets 1–3.
 
-Scope: stator flux linkages only. English manuscript, English handover.
-Work is on `codex/flux-reduction-study`; production software and raw files are read-only.
-The pre-existing manuscript/scripts were copied to `%TEMP%/winding_factor_before_20261024`
-and preserved in baseline commit `fa08911`.
+From the repository root in MATLAB R2025b:
 
-Execution order (all commands from `C:/Git/Winding_Factor`):
-1. `prepare_reduction_data`: average acquisition repetitions by file and operating-point index,
-   retain measured currents, calculate stationary flux from measured dq voltages.
-2. `analyze_winding_factors`, `validate_winding_factor`: conventional contours, local derivative
-   diagnostics and three analytic numerical examples.
-3. `audit_reduction_sources`: fresh vs historical preprocessing, original saved coordinates and constants.
-4. `analyze_flux_map_reduction`: A--H, reconstruction, nested group holdout,
-   controlled raster and scaling comparisons, generated tables and complete group figures.
-5. `plot_reduction_study`: independent surfaces, folding/holdout Jacobian checks, boundary tables,
-   all group figures and generated manuscript tables.
-6. Compile `main.tex` and `atlas.tex`, render and inspect the PDFs.
-
-Final build: 24 manuscript pages and 297 atlas pages. Both PDFs compiled twice;
-all pages were rendered and visually surveyed, with enlarged checks of the changed figures.
-No unresolved references or overfull boxes remain.
-
-```powershell
-matlab -batch "restoredefaultpath; addpath('C:/Git/Winding_Factor/matlab/k_factor'); run_k_factor_analysis"
+```matlab
+addpath(pwd);
+% Only if canonical data need preparing again:
+run_matlab_analysis([], 'raw', 'prepare');
+addpath(fullfile(pwd,'matlab','k_factor'));
+analyze_winding_factors;       % Cached canonical data; tabbed figures, no images
+validate_winding_factor;       % Local derivatives; not required if cache exists
 ```
 
-Run LaTeX from `winding_factor_study` to resolve relative inputs; the exact final build
-commands below use that working directory. Run twice for references:
+`results/reduction_data.mat` stores the canonical structs; `reduction_inputs`
+extracts measured current/flux arrays and groups by `ie_ref`. For raw inputs,
+`ie_ref` comes from the requested excitation; measured excitation is retained
+for all numerical coordinates. Eval imports use their stored block references.
+No copy of these MAT files is required by the follow-up analysis.
+
+For a complete new A–H fitting run, use `run_k_factor_analysis`. It includes
+`analyze_flux_map_reduction` and can be expensive. Do not run it merely to
+inspect contour plots or reuse local derivatives. The historical source audit
+`audit_reduction_sources` is separate and requires full original FluxEval inputs.
+No function-model study is necessary for these k-factor investigations.
+
+## Plotting and explicit exports
+
+Each contour-analysis dataset opens one figure with tabs for measured, shifted,
+reduced and reconstructed flux, a measured/reconstructed overlay, per-group
+errors, contour statistics and the 3-D centroid diagnostic. The field tabs share
+nominal-current checkboxes and `Alle`/`Keine`. The overlay uses a translucent
+measured surface, reconstruction mesh and signed-error-coloured points.
+Error tabs include density histograms and point statistics.
+
+Image export is opt-in:
+
+```matlab
+analyze_winding_factors('png');
+analyze_winding_factors('pdf');
+% Rebuild only existing reduction displays/tables, without refitting:
+plot_reduction_study;          % Many figures; no image exports by default
+```
+
+An explicit `analyze_winding_factors('png')` updates contour PNG copies used by
+the manuscript. `plot_reduction_study('png')` regenerates all A–H atlas images
+and tables; use it only when those data or displays actually need updating.
+Individual tab layouts can be exported directly with `exportgraphics`.
+Default MAT/CSV result writes are independent of optional image export.
+
+## Existing results and atlas
+
+- `results/winding_factors.mat`: contour factors and diagnostic data.
+- `results/winding_validation.mat`: derivative estimates, masks and analytic examples.
+- `results/flux_map_reduction.mat` and `Set*_reduction.mat`: existing A–H fits,
+  reconstructions, holdouts and numerical controls.
+- Existing `research_results.zip`: archived numerical outputs and logs; extract
+  into `results/` when local caches are absent. Check provenance against current
+  canonical data before combining archives from different runs.
+
+`atlas_pages.tex` contains three excitation lists: 13, 14 and 10 groups.
+The atlas remains 296 existing A–H comparison pages plus its introduction.
+It uses 41×41 display queries and the previously stored models; it is distinct
+from interactive contour tabs and the new local-factor plots. No atlas images
+or group lists were regenerated during this cleanup.
+
+Run LaTeX twice from this folder to resolve relative inputs and references:
 
 ```powershell
-Set-Location C:/Git/Winding_Factor/winding_factor_study
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
 pdflatex -interaction=nonstopmode -halt-on-error atlas.tex
 pdflatex -interaction=nonstopmode -halt-on-error atlas.tex
 ```
 
-The three independent sets were fitted concurrently in three MATLAB processes, each with
-`maxNumCompThreads(2); analyze_flux_map_reduction(1)` (respectively 2 and 3).
-The last completed set collects all three completed result files. Serial execution with no argument
-produces the same deterministic fitting procedure. Logs: `results/reduction_set1.log` through `set3.log`.
-
-Source provenance:
-- Original acquisition files remain under `Resources/DataSets/Set*/raw`.
-- Fresh compact grouped flux exports: each set's `extracted/evaluation/research_flux_measurements.mat`.
-- `results/reduction_data.mat` and `Set*_flux_points.csv` contain measured currents, recomputed
-  fluxes, nominal labels, file/index identity and repetition counts. `data_inventory.csv` reports
-  current tracking, excitation scatter, speed and recorded temperatures per group.
-- The local corrected numerical source inspected was the measurement-evaluation checkout at
-  `a66300e3`. `flux_calculation.m`, `fit_calculation.m` and `Torque_LUT_Calc.m` were read only.
-  The research implementation uses the same measured-voltage stationary flux formula and current
-  corrected output/input derivative convention. It deliberately rebuilds all sets with arithmetic
-  averaging and no fresh outlier rejection; it does not claim to rerun the complete GUI pipeline.
-- Set1/2 historical exports are only a provenance/coordinate control. Their flux difference is
-  evaluated at matched physical coordinates and exported in `historical_preprocessing_comparison.csv`.
-  These differences are not subtracted from reconstruction RMSE as a causal partition.
-- Set1 and Set2 record different current sensor delays (0 and -24 microseconds). No delay causality
-  is inferred. Set3 lacks machine-ID/phase-selector/delay/RMS comparison channels.
-- `main 2.pdf` was not present in the project or supplied attachments. The supplied review requirements
-  were therefore used directly. References to the handwritten working note were removed.
-
-Settings are literal constants in the scripts: 81 nodes per reduced axis, 40/80/120 derivative neighbors,
-at most 120 query records for each of three inner groups, equal component weights, regularization
-`1e-8 Vs^2` on added coefficients, and bounded finite-budget parameter searches. Final outer-group
-errors use every common supported point, not the inner fitting subsample. D--G use a nonzero search
-coordinate origin so zero physical coefficients receive the same initial simplex step as nonzero ones.
-Optimizer exit flags are retained; a budget stop is not a convergence claim.
-
-Core results:
-- `results/flux_map_reduction.mat`: all maps, physical-point predictions, masks and fold parameters.
-- `results/winding_validation.mat`: derivative estimates and analytic controls.
-- `method_metrics.csv`, `group_metrics.csv`, `boundary_groups.csv`: error/coverage/complexity.
-- `surface_pairs.csv`, `projected_folding.csv`, `holdout_jacobians.csv`: independent geometry checks.
-- `Set*_reduction.mat`: independent complete dataset results, including scaling/raster controls.
-- Main figures and complete atlas figures are generated under `winding_factor_study/figures`.
-
-Atlas maintenance: `atlas_pages.tex` contains three `AtlasDataset` calls with each set's excitation
-list. The shared page layout and nested `foreach` loops are defined once in `atlas.tex`.
-The d-flux 3D views exchange displayed d/q axes; heatmaps retain their d/q order.
-All figure axes use the requested `quantity in unit` notation. These are presentation changes;
-the fitted models, errors and numerical scaling are unchanged.
-Figure 1 uses open meshes so the individual excitation levels remain visible.
-`research_results.zip` contains the current numerical MAT/CSV outputs and execution logs;
-extract it into `results/` to inspect the saved results without repeating the fits.
-
-CSV conventions: method numbers 1--8 mean A--H; mode 1 is all-data reconstruction and mode 2
-is interior whole-group prediction. The two endpoint groups are excluded from the all-model
-interior mask, so their mode-2 common count in `group_metrics.csv` is deliberately zero; use
-`boundary_groups.csv` for their actual prediction errors and support. H's own-support boundary
-metrics must not be presented as a matched-support comparison with reduced models.
-
-Review mapping:
-
-| Requested issue | Implementation / manuscript location |
-| --- | --- |
-| Current source, Set3, measured vs nominal currents | preparation + source audit; data section |
-| Contours, moving iq, centroid, quotient, secants | contour script + estimator section |
-| Common exactness, local/global, determinant, LS | derivative script + exact-reduction section |
-| Actual shared model and return reconstruction | fit/lookup helpers + experiment section |
-| Independent transformed originals | plotting postprocessor + independent-surface section |
-| A--H and integrated shift, two axes, bounded all-current model | comparison script + model section |
-| No outer-group leakage | inner fitting inside each outer fold; prediction section |
-| Identical support, signed errors, per-group coverage | metric masks/CSV; complete atlas |
-| Raster and coordinate scaling | controls in comparison script; numerical-control results |
-| English narrative, no external citations as subsequently requested | rewritten main manuscript |
-| Executed controls, compiled PDFs, recommendation, review fixes | generated outputs and final handover |
-
-The detailed authorized specification is the user's attached research request. No test framework,
-assertions, production GUI changes, scalar magnetic model or deployment are part of this work.
+The follow-up lives in [k_factor_investigation](../k_factor_investigation/README.md).
+It changes no reference estimator and performs no new global optimization.
+Local differential factors, contour departure, reconstruction RMSE, prediction
+RMSE and derivative residuals remain different statistics. No symmetry or
+causal error decomposition is assumed.
