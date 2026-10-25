@@ -26,10 +26,11 @@ __pycache__/
 /winding_factor_study/*.xdv
 /winding_factor_study/figures/atlas/
 /winding_factor_study/*.toc
-/k_factor_investigation/manuscript/*.aux
-/k_factor_investigation/manuscript/*.log
-/k_factor_investigation/manuscript/*.out
-/k_factor_investigation/manuscript/*.toc
+/matlab/k_factor_investigation/manuscript/*.aux
+/matlab/k_factor_investigation/manuscript/*.log
+/matlab/k_factor_investigation/manuscript/*.out
+/matlab/k_factor_investigation/manuscript/*.toc
+/matlab/k_factor_investigation/results/
 /function_model_study/**/*.aux
 /function_model_study/**/*.log
 /function_model_study/**/*.out

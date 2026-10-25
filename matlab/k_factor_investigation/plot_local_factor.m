@@ -1,6 +1,11 @@
 function fig = plot_local_factor(local, values, field_name, valid, export_format)
 % Physical current meshes, separately connected within each nominal group.
+% plot_local_factor(local, 'psi_d'/'psi_q'/'ls'/'kd'/'kq')
 % plot_local_factor(local, local.kd, 'k_d', local.valid_pair, 'png')
+requested_valid = [];
+if nargin >= 4
+    requested_valid = valid;
+end
 if nargin < 2 || isempty(values)
     values = local.klocal;
 end
@@ -12,6 +17,33 @@ if nargin < 4 || isempty(valid)
 end
 if nargin < 5
     export_format = '';
+end
+if ischar(values) || isstring(values)
+    switch char(values)
+        case 'psi_d'
+            values = local.kd_from_psi_d;
+            field_name = 'k_d^{(\psi_d)}';
+            valid = local.valid_psi_d;
+        case 'psi_q'
+            values = local.kd_from_psi_q;
+            field_name = 'k_d^{(\psi_q)}';
+            valid = local.valid_psi_q;
+        case 'ls'
+            values = local.klocal;
+            field_name = 'k_{LS}';
+            valid = local.valid_local;
+        case 'kd'
+            values = local.kd;
+            field_name = 'k_d (two-axis)';
+            valid = local.valid_pair;
+        case 'kq'
+            values = local.kq;
+            field_name = 'k_q (two-axis)';
+            valid = local.valid_pair;
+    end
+end
+if ~isempty(requested_valid)
+    valid = valid & requested_valid;
 end
 x = local.x;
 values = values(:);
@@ -77,7 +109,7 @@ if ~isempty(export_format)
     root = fileparts(fileparts(fileparts(mfilename('fullpath'))));
     addpath(fullfile(root, 'matlab', 'common'));
     name = regexprep(field_name, '[^a-zA-Z0-9]', '');
-    export_analysis_plot(ax, fullfile(root, 'k_factor_investigation', 'figures', ...
+    export_analysis_plot(ax, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
         sprintf('local_%s_set%d', name, local.set)), export_format, 150);
 end
 
