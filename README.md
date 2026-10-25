@@ -16,6 +16,7 @@ python/function_model/     Function-model module and study-entry placeholders
 Resources/                 Shared measurement data and MeasEval resources
 results/                   Generated MAT/CSV results (ignored by Git)
 winding_factor_study/      First study: manuscripts, figures, results archive
+k_factor_investigation/    Contour geometry and saved local-factor investigations
 function_model_study/      Second study: manuscripts, figures, results archive
 README.md, AGENTS.md        Project description and working guidelines
 ```
@@ -23,6 +24,11 @@ README.md, AGENTS.md        Project description and working guidelines
 MATLAB R2025b with base MATLAB is the environment used for the existing studies.
 Parameters, data selection, group splits, interpolation methods, and error
 definitions are preserved. Raw data and study folders remain in their existing locations.
+
+Follow-up contour averaging and interactive local differential-factor meshes are
+in [k_factor_investigation](k_factor_investigation/README.md). They reuse canonical
+measurements and saved derivatives without changing the conventional estimator
+or refitting the existing coordinate models.
 
 ## Running MATLAB
 
