@@ -61,7 +61,8 @@ ng = numel(local.excitation);
 scale = max(abs(x(:, 1:2)), [], 1);
 scale(scale == 0) = 1;
 [fig,plot_tab,method_tab] = investigation_tab(local.set,'Lokale Faktoren',plot_name);
-ax = axes(plot_tab, 'Position', [.08 .11 .60 .79]);
+ax = axes(plot_tab, 'Position', [.04 .16 .33 .69]);
+heat_ax = axes(plot_tab,'Position',[.48 .16 .25 .69]);
 hold(ax, 'on');
 meshes = gobjects(ng, 1);
 points = gobjects(ng, 1);
@@ -72,7 +73,7 @@ uicontrol(panel, 'Style', 'pushbutton', 'String', 'Alle', 'Tag', 'show_all_group
     'Units', 'normalized', 'Position', [.04 .92 .43 .05], 'Callback', @(~, ~) show_all(true));
 uicontrol(panel, 'Style', 'pushbutton', 'String', 'Keine', 'Tag', 'hide_all_groups', ...
     'Units', 'normalized', 'Position', [.53 .92 .43 .05], 'Callback', @(~, ~) show_all(false));
-height = min(.055, .82/ng);
+height = min(.05, .65/ng);
 
 for g = 1:ng
     previous = findall(method_tab,'Tag',sprintf('local_group_%02d',g));
@@ -106,6 +107,12 @@ for g = 1:ng
         'Callback', @(source, ~) show_group(g, logical(source.Value)));
     show_group(g,visible);
 end
+uicontrol(panel,'Style','text','String','Heatmap-Gruppe','Units','normalized', ...
+    'Position',[.04 .14 .92 .035]);
+uicontrol(panel,'Style','popupmenu','String',compose('%g A (Soll)',local.excitation), ...
+    'Units','normalized','Position',[.04 .09 .92 .045],'Value',1, ...
+    'Callback',@(source,~) draw_heatmap(source.Value));
+draw_heatmap(1);
 uicontrol(panel,'Style','text','String',{'Auswahl gilt in allen','Faktor-Tabs.'}, ...
     'Units','normalized','Position',[.04 .01 .92 .07]);
 xlabel(ax, 'i_d in A');
@@ -116,7 +123,7 @@ grid(ax, 'on');
 view(ax, 35, 25);
 colormap(ax, turbo(256));
 cb = colorbar(ax);
-cb.Position = [.735 .15 .018 .69];
+cb.Position = [.39 .16 .012 .66];
 cb.Label.String = 'Measured i_e in A';
 clim(ax, [min(x(:, 3)) max(x(:, 3))]);
 rotate3d(fig, 'on');
@@ -126,6 +133,8 @@ if ~isempty(export_format)
     name = regexprep(field_name, '[^a-zA-Z0-9]', '');
     export_investigation_plot(ax, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
         sprintf('local_%s_set%d', name, local.set)), export_format);
+    export_investigation_plot(heat_ax, fullfile(root, 'matlab', 'k_factor_investigation', 'results', ...
+        sprintf('local_%s_heatmap_set%d', name, local.set)), export_format);
 end
 
     function show_group(g, visible)
@@ -135,6 +144,7 @@ end
         end
         set(findall(method_tab,'Tag',sprintf('local_mesh_%02d',g)),'Visible',state);
         set(findall(method_tab,'Tag',sprintf('local_points_%02d',g)),'Visible',state);
+        set(findall(method_tab,'Tag',sprintf('local_heatmap_%02d',g)),'Visible',state);
         set(findall(method_tab,'Tag',sprintf('local_group_%02d',g)),'Value',double(visible));
     end
 
@@ -143,5 +153,23 @@ end
         for g = 1:ng
             show_group(g, visible);
         end
+    end
+
+    function draw_heatmap(g)
+        cla(heat_ax);
+        rows = local.groups==g & valid;
+        h = scatter(heat_ax,x(rows,1),x(rows,2),18,values(rows),'filled', ...
+            'Tag',sprintf('local_heatmap_%02d',g));
+        check = findall(plot_tab,'Tag',sprintf('local_group_%02d',g));
+        if ~check.Value
+            h.Visible = 'off';
+        end
+        xlabel(heat_ax,'i_d in A');
+        ylabel(heat_ax,'i_q in A');
+        title(heat_ax,sprintf('%s: %g A Soll',field_name,local.excitation(g)));
+        grid(heat_ax,'on');
+        colormap(heat_ax,turbo(256));
+        cb = colorbar(heat_ax);
+        cb.Label.String = 'Faktor in A/A';
     end
 end

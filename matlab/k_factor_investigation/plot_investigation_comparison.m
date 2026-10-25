@@ -82,6 +82,56 @@ for j = 1:nsets
     title(layout,sprintf('Set%d: %d gemeinsame gültige Punkte; a=[Ldd,Lqd], b=[Lde,Lqe]', ...
         item.set,nnz(l.common_scalar)));
     export_investigation_plot(layout,fullfile(folder,sprintf('method_differential_set%d',item.set)),export_format);
+    if isfield(item,'fields')
+        f = item.fields;
+        [~,tab] = investigation_tab(item.set,'Methodenvergleich','Feldrekonstruktion');
+        layout = tiledlayout(tab,1,2,'TileSpacing','compact');
+        ax = nexttile(layout);
+        barh(ax,f.rmse);
+        yticks(ax,1:numel(f.methods));
+        yticklabels(ax,{f.methods.name});
+        xlabel(ax,'RMSE auf gemeinsamer Abdeckung in mVs');
+        legend(ax,'psi_d','psi_q','Location','best');
+        grid(ax,'on');
+        title(ax,sprintf('%d identische gültige Messpunkte',nnz(f.common)));
+        ax = nexttile(layout);
+        coverage = arrayfun(@(m) nnz(m.valid),f.methods)/numel(f.groups);
+        barh(ax,100*coverage);
+        yticks(ax,1:numel(f.methods));
+        yticklabels(ax,{f.methods.name});
+        xlabel(ax,'Gültig rekonstruierte Messpunkte in %');
+        xline(ax,100*mean(f.common),'k--','gemeinsame Abdeckung');
+        grid(ax,'on');
+        title(ax,'Abdeckung getrennt vom Fehler vergleichen');
+        title(layout,'Gleiche 81x81-LUT und Interpolation; Fehler innerhalb der verwendeten Messdaten');
+        export_investigation_plot(layout,fullfile(folder,sprintf('field_errors_set%d',item.set)),export_format);
+        for c = 1:2
+            component = {'d','q'};
+            [~,tab] = investigation_tab(item.set,'Methodenvergleich',['Gruppenfehler psi_' component{c}]);
+            layout = tiledlayout(tab,1,2,'TileSpacing','compact');
+            [M,E] = meshgrid(1:numel(f.methods),f.excitation);
+            values = f.group_rmse(:,:,c);
+            ax = nexttile(layout);
+            surf(ax,M,E,values,'FaceColor','none','EdgeColor','interp');
+            view(ax,35,25);
+            zlabel(ax,'RMSE in mVs');
+            ax2 = nexttile(layout);
+            imagesc(ax2,1:numel(f.methods),1:numel(f.excitation),values);
+            yticks(ax2,1:numel(f.excitation));
+            yticklabels(ax2,compose('%g A',f.excitation));
+            for p = [ax ax2]
+                xticks(p,1:numel(f.methods));
+                xticklabels(p,{f.methods.name});
+                xtickangle(p,45);
+                ylabel(p,'Nominaler Erregerstrom');
+                colorbar(p);
+                colormap(p,turbo(256));
+                clim(p,[0 max(max(values,[],'all','omitnan'),eps)]);
+            end
+            title(layout,sprintf('psi_%s: alle Gruppen auf gemeinsamer Auswertemaske',component{c}));
+            export_investigation_plot(layout,fullfile(folder,sprintf('field_group_errors_set%d_%s',item.set,component{c})),export_format);
+        end
+    end
 end
 
 [overview,tab] = investigation_tab('Methodenvergleich','Alle Sets','Faktoren und Differentialkriterium');
@@ -137,4 +187,25 @@ legend(ax,'Location','best');
 title(ax,'Widerstandssensitivität, keine Rs-Identifikation');
 title(layout,'Konturverfahren separat vom Differentialkriterium vergleichen');
 export_investigation_plot(layout,fullfile(folder,'method_overview_contours'),export_format);
+if all(cellfun(@(s) isfield(s,'fields'),study))
+    [~,tab] = investigation_tab('Methodenvergleich','Alle Sets','Feldrekonstruktion');
+    layout = tiledlayout(tab,1,2,'TileSpacing','compact');
+    for c = 1:2
+        ax = nexttile(layout);
+        values = nan(numel(study{1}.fields.methods),nsets);
+        for j = 1:nsets
+            values(:,j) = study{j}.fields.rmse(:,c);
+        end
+        barh(ax,values);
+        yticks(ax,1:numel(study{1}.fields.methods));
+        yticklabels(ax,{study{1}.fields.methods.name});
+        xlabel(ax,'RMSE in mVs');
+        legend(ax,compose('Set%d',set_ids),'Location','best');
+        grid(ax,'on');
+        component = {'psi_d','psi_q'};
+        title(ax,component{c},'Interpreter','none');
+    end
+    title(layout,'Feldrekonstruktion: gleiche Punkte innerhalb jedes Sets; unterschiedliche Messbereiche zwischen Sets');
+    export_investigation_plot(layout,fullfile(folder,'field_error_overview'),export_format);
+end
 end

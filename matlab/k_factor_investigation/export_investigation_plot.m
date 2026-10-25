@@ -3,6 +3,8 @@ function export_investigation_plot(target, filename, export_format)
 if isempty(export_format)
     return;
 end
+matlab_folder = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(matlab_folder,'common'));
 containers = gobjects(0);
 selected = gobjects(0);
 item = target;

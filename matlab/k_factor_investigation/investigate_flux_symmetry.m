@@ -22,7 +22,7 @@ if nargin < 5
 end
 [x, y, groups, excitation] = reduction_inputs(data);
 if isempty(group_indices)
-    group_indices = ceil(numel(excitation)/2);
+    group_indices = 1:numel(excitation);
 end
 scale = max(abs(x(:,1:2)), [], 1);
 scale(scale == 0) = 1;
@@ -94,38 +94,63 @@ for j = 1:numel(group_indices)
         set_index,excitation(g),nnz(common),numel(common),1000*rms_d,1000*rms_q,sqrt(mean(delta_ie.^2)));
     if make_plots
         [fig,plot_tab] = investigation_tab(set_index,'Flusssymmetrie',sprintf('%g A (Soll)',excitation(g)));
-        layout = tiledlayout(plot_tab,2,3,'TileSpacing','compact');
+        metric_tabs = uitabgroup(plot_tab);
         fields = {1000*item.psi_d_even,1000*item.psi_d_odd, ...
             1000*reshape(item.d_residual,size(D)),1000*item.psi_q_odd,1000*item.psi_q_even,item.ie_difference};
         names = {'d-flux even part (mVs)','d-flux odd part (mVs)','d mirror difference (mVs)', ...
             'q-flux odd part (mVs)','q-flux even part (mVs)','measured mirror delta i_e (A)'};
         for panel = 1:6
-            ax = nexttile(layout);
-            surf(ax,D,Q,fields{panel},'EdgeColor','none');
-            view(ax,2);
-            axis(ax,'tight');
-            colorbar(ax);
-            xlabel(ax,'i_d in A');
-            ylabel(ax,'|i_q| in A');
-            title(ax,names{panel});
-            if ismember(panel,[2 3 5 6])
-                colormap(ax,signed_colors);
-                color_limit = max(abs(fields{panel}),[],'all','omitnan');
-                color_limit = max(color_limit,eps);
-                clim(ax,[-color_limit color_limit]);
-            else
-                colormap(ax,turbo(256));
-            end
+            tab = uitab(metric_tabs,'Title',names{panel});
+            tab.UserData = {D,Q,fields{panel},names{panel},signed_colors,ismember(panel,[2 3 5 6])};
         end
-        title(layout,sprintf('Set%d: nominal %g A; identical i_d and |i_q|, measured i_e may differ',set_index,excitation(g)));
+        metric_tabs.SelectionChangedFcn = @(~,event) plot_symmetry_metric(event.NewValue);
+        tab = metric_tabs.Children(end);
+        metric_tabs.SelectedTab = tab;
+        plot_symmetry_metric(tab);
         figures = fig;
         if ~isempty(export_format)
-            export_investigation_plot(layout,fullfile(folder,'results',sprintf('symmetry_set%d_group%d',set_index,g)),export_format);
+            for tab = metric_tabs.Children'
+                plot_symmetry_metric(tab);
+                export_investigation_plot(findall(tab,'Type','tiledlayout'), ...
+                    fullfile(folder,'results',sprintf('symmetry_set%d_group%d_%s', ...
+                    set_index,g,matlab.lang.makeValidName(tab.Title))),export_format);
+            end
         end
     end
 end
+
 study.summary_columns = {'ie_ref_A','pairs','queries','d_residual_rms_Vs','q_residual_rms_Vs', ...
     'd_residual_max_Vs','q_residual_max_Vs','mirror_ie_rms_A','mirror_ie_max_A'};
 fprintf('Mirrors share a nominal group, not necessarily identical measured i_e; no symmetry was enforced.\n');
 fprintf('Measured ie follows each original interpolated group graph; its mirror differences limit any fixed-ie parity interpretation.\n');
+end
+
+function plot_symmetry_metric(tab)
+if ~isempty(tab.Children)
+    return;
+end
+data = tab.UserData;
+layout = tiledlayout(tab,1,2,'TileSpacing','compact');
+for view_index = 1:2
+    ax = nexttile(layout);
+    surf(ax,data{1},data{2},data{3},'EdgeColor','none');
+    if view_index==1
+        view(ax,35,25);
+    else
+        view(ax,2);
+    end
+    xlabel(ax,'i_d in A');
+    ylabel(ax,'|i_q| in A');
+    colorbar(ax);
+    title(ax,data{4});
+    grid(ax,'on');
+    if data{6}
+        colormap(ax,data{5});
+        limit = max(max(abs(data{3}),[],'all','omitnan'),eps);
+        clim(ax,[-limit limit]);
+    else
+        colormap(ax,turbo(256));
+    end
+end
+title(layout,[tab.Parent.Parent.Title ': Spiegelpunkte können unterschiedliche gemessene ie haben']);
 end

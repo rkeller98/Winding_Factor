@@ -24,12 +24,41 @@ Erregerstromgruppen gilt gemeinsam für alle räumlichen Faktor-Tabs.
 Konturverfahren und Differentialfaktoren werden nach getrennten Kriterien
 verglichen; Quantilstriche beschreiben Kennfeldstreuung, keine Unsicherheit.
 
+Unter **Feldrekonstruktion → Methoden** hat jede der 15 Methoden dieselben Tabs:
+Messwerte, zusammengeschoben, zusammengeschoben + gemittelt, Rekonstruktion,
+Messung + Rekonstruktion, Fehler und k-Verlauf. Räumliche Felder stehen als 3D
+und Heatmap nebeneinander. Checkboxen steuern alle Erregerstromgruppen gemeinsam
+über Methoden/Feld-Tabs; die Heatmap-Gruppe ist separat auswählbar. Die Auswahl
+ändert nur die Anzeige, nicht die bereits berechnete LUT. Plot-Tabs werden erst
+beim Öffnen gezeichnet. Symmetrie, Konturpaare und lokale Vergleiche bieten alle
+Gruppen über Tabs an. Fehlerplots enthalten zusätzlich Verteilung, Mittelwert,
+Standardabweichung und RMSE.
+
+Die zehn Konturmittelungen verwenden jetzt für den Feldvergleich alle Gruppen
+und die ursprünglichen 100 Niveaus. Die globale Mittelung entspricht jeweils
+der Referenzregel `abs(Delta id)/Delta ie`; der ursprüngliche Estimator liefert
+weiterhin unverändert den ersten Faktor. Fixed-q verwendet den vorzeichenbehafteten
+Mittelwert gültiger eindeutiger Wurzeln je Paar/Niveau, danach gleichgewichtete
+Mittelung dieser Paar-/Niveauwerte. Gemessene ie-Differenzen bleiben maßgeblich.
+Die Differentialansätze für die Feldansicht sind ausdrücklich **globale konstante**
+LS-Faktoren: je Flusskomponente `sum(a*b)/sum(a^2)` auf deren gültiger Maske,
+gemeinsames LS aus dem gespeicherten globalen Differentialfaktor und die
+gespeicherte zweiachsige Methode F. Örtlich variable Faktoren bleiben Diagnosen.
+
+Alle Felder verwenden denselben bestehenden 81×81-LUT-Aufbau: identische reduzierte
+Koordinaten werden gemittelt, dazwischen wird linear interpoliert, ohne Extrapolation.
+Das ist keine zusätzliche punktweise Mittelung vollständiger Gruppenflächen.
+Der Methodenvergleich zeigt Rekonstruktionsfehler und Abdeckung getrennt sowie
+Gruppenfehler als Heatmap und 3D. Die RMSE-Werte verwenden innerhalb eines Sets
+für sämtliche Methoden dieselben gültigen Messpunkte; sie sind Fehler innerhalb
+der verwendeten Messdaten, keine unabhängige Vorhersageprüfung.
+
 Die bisherigen Einzelaufrufe ergänzen dieselben Set-Figures:
 
 ```matlab
 ideal = investigate_ideal_machine;
 averaging = investigate_contour_averaging(1,[6 7],50);
-symmetry = investigate_flux_symmetry(1,[6 7]);
+symmetry = investigate_flux_symmetry(1); % alle Erregerstromgruppen
 resistance = investigate_resistance_sensitivity(1);
 local = investigate_local_factors;  % alle drei Sets, gespeicherte Ableitungen
 plot_local_factor_comparison(local{1});

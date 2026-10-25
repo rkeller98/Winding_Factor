@@ -51,7 +51,7 @@ study.nominal_excitation = excitation(group_indices);
 study.level_index = level_index;
 locations = study.locations;
 departures = study.flux_departure;
-[figures,plot_tab] = investigation_tab(set_index,'Konturverfahren','Konturen und Abtastung');
+[figures,plot_tab,method_tab] = investigation_tab(set_index,'Konturverfahren','Konturen und Abtastung');
 layouts = gobjects(3,1);
 layouts(1) = tiledlayout(plot_tab,2,2,'TileSpacing','compact');
 layout = layouts(1);
@@ -276,6 +276,19 @@ for m = 1:numel(study.methods)
         'fixed-iq-Abdeckung und Mehrdeutigkeiten im gemeinsamen Diagnose-Tab'});
 end
 method_tabs.SelectedTab = method_tabs.Children(end);
+% Keep the existing plots; the group-pair selector sits above their tab group.
+plots = findall(method_tab,'Type','uitabgroup','Tag','Konturverfahren_plots');
+plots.Position = [0 0 1 .94];
+delete(findall(method_tab,'Tag','contour_pair_controls'));
+controls = uitabgroup(method_tab,'Tag','contour_pair_controls','Position',[0 .94 1 .06]);
+for g = 1:numel(excitation)-1
+    tab = uitab(controls,'Title',sprintf('%g -> %g A',excitation(g:g+1)),'UserData',g);
+    if g==group_indices(1)
+        controls.SelectedTab = tab;
+    end
+end
+controls.SelectionChangedFcn = @(~,event) investigate_contour_averaging( ...
+    set_index,event.NewValue.UserData+[0 1],level_index,'');
 drawnow;
 if ~isempty(export_format)
     for i = 1:numel(layouts)

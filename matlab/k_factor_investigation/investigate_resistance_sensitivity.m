@@ -183,7 +183,17 @@ study.summary_columns = {'delta_R_ohm','global_contour_k','fixed_level_edge_sign
     'centroid_iq_drift','d_mirror_residual_rms_Vs','q_mirror_residual_rms_Vs', ...
     'median_local_LS','global_derivative_k','median_reciprocity_H','median_component_d','median_component_q'};
 [fig,plot_tab] = investigation_tab(set_index,'Statorwiderstand','Sensitivität');
-layout = tiledlayout(plot_tab,2,3,'TileSpacing','compact');
+selection = uitabgroup(plot_tab,'Position',[0 .94 1 .06]);
+for g = 1:numel(excitation)-1
+    tab = uitab(selection,'Title',sprintf('%g -> %g A',excitation(g:g+1)),'UserData',g);
+    if g==group_indices(1)
+        selection.SelectedTab = tab;
+    end
+end
+selection.SelectionChangedFcn = @(~,event) investigate_resistance_sensitivity( ...
+    set_index,offsets,event.NewValue.UserData+[0 1],'',[]);
+panel = uipanel(plot_tab,'BorderType','none','Position',[0 0 1 .94]);
+layout = tiledlayout(panel,2,3,'TileSpacing','compact');
 ax = nexttile(layout);
 plot(ax,delta_R,study.summary(:,2),'o-');
 ylabel(ax,'global contour k (A/A)');
