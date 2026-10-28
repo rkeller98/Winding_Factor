@@ -35,8 +35,6 @@ Y = [psi_d, psi_q];
 dq_weight = 3/2;
 
 i_f_bp = unique(i_f);
-i_f_bp = [min(i_f_bp), max(i_f_bp)];
-% i_f_bp = i_f_bp(1:2:end);
 
 
 % Normalize the current coordinates
@@ -130,6 +128,14 @@ reference_supported = ~isnan(pointLocation(current_hull,Z_ref));
 W_coenergy_rel(~reference_supported) = NaN;
 psi_f_rel(~reference_supported) = NaN;
 
+% Relative field self-inductance: d^2(W_coenergy-W_coenergy_ref)/di_f^2.
+% Polynomial terms are at most linear in i_f; only the Gaussians contribute.
+d2Phi_ff = (4/sigma^4*(z_f-centers(:,3)').^2-2/sigma^2).*Phi;
+d2Phi_ff_ref = (4/sigma^4*(z_f-centers(:,3)').^2-2/sigma^2).*Phi_ref;
+DeltaLff = coenergy_scale/scale(3)^2 * ...
+    ((d2Phi_ff-d2Phi_ff_ref)*coeff(8:end));
+DeltaLff(~reference_supported) = NaN; % H; absolute Lff is still unknown
+
 %% Lightweight diagnostics (in-sample, not independent validation)
 flux_error = Psi-Y;
 fprintf('Coenergy flux RMSE [d q] in Vs: %.6g %.6g\n', ...
@@ -167,102 +173,7 @@ fprintf('Independent Ldq-Lqd RMS/max abs in H: %.6g %.6g\n', ...
 % consistency. Next: measured-flux loop integrals inside each field-current
 % slice and residuals by slice/repetition, then independent field-flux paths.
 
-%% Relative field flux plot
-figure()
-t = tiledlayout(1,numel(i_f_bp));
-for idx = 1:numel(i_f_bp)
-    axF = nexttile(t,idx);
-    axF.Toolbar.Visible = 'off';
-    mask = i_f == i_f_bp(idx) & reference_supported;
-    scatter3(axF,i_d(mask),i_q(mask),psi_f_rel(mask),12,'filled');
-    xlabel(axF,'i_d in A');
-    ylabel(axF,'i_q in A');
-    zlabel(axF,'psi_f,rel in Vs');
-    title(axF,sprintf('i_f = %.2f A',i_f_bp(idx)));
-    grid(axF,'on');
-    view(axF,3);
-end
-% Slices use requested i_f; physical currents may differ through tracking.
-% Unsupported reference points are omitted, not extrapolated.
-
-%% Psi Plot 
-
-figure()
-t = tiledlayout(1,2);
-
-axD = nexttile(t,1);
-axQ = nexttile(t,2);
-
-hold(axD, 'on');
-hold(axQ, 'on');
-
-for idx = 1:numel(i_f_bp)
-    mask = i_f == i_f_bp(idx);
-    label = sprintf("i_f = %.2f A", i_f_bp(idx));
-    scatter3(axD, i_d(mask), i_q(mask), Psi(mask,1), ...
-        'filled', DisplayName=label);
-
-    scatter3(axQ, i_d(mask), i_q(mask), Psi(mask,2), ...
-        'filled', DisplayName=label);
-end 
-
-xlabel(axD, 'i_d in A');
-ylabel(axD, 'i_q in A');
-zlabel(axD, 'psi_d in Vs');
-
-xlabel(axQ, 'i_d in A');
-ylabel(axQ, 'i_q in A');
-zlabel(axQ, 'psi_q in Vs');
-
-view(axD, 3);
-view(axQ, 3);
-
-grid(axD, 'on');
-grid(axQ, 'on');
-
-legend(axD, 'show');
-legend(axQ, 'show');
-
-%% Inductance Plot 
-
-figure()
-t = tiledlayout(2,3, 'TileSpacing','compact', 'Padding','compact');
-
-L_name = ["Ldd", "Ldq", "Ldf";
-          "Lqd", "Lqq", "Lqf"];
-
-ax = gobjects(2,3);
-
-for r = 1:2
-    for c = 1:3
-        ax(r,c) = nexttile(t, (r-1)*3+c);
-        hold(ax(r,c), 'on');
-
-        for idx = 1:numel(i_f_bp)
-            mask = i_f == i_f_bp(idx);
-
-            scatter3(ax(r,c), i_d(mask), i_q(mask), L(mask,r,c), ...
-                12, 'filled', ...
-                DisplayName=sprintf('i_f = %.2f A', i_f_bp(idx)));
-        end
-
-        xlabel(ax(r,c), 'i_d in A');
-        ylabel(ax(r,c), 'i_q in A');
-        zlabel(ax(r,c), L_name(r,c) + " in H");
-        title(ax(r,c), L_name(r,c));
-
-        grid(ax(r,c), 'on');
-        view(ax(r,c), 3);
-        legend(ax(r,c), 'show');
-    end
-end
-
-linkprop(ax(:), {'CameraPosition', 'CameraTarget', 'CameraUpVector', 'CameraViewAngle'});
-
-
-
-%%
-
+%% Local factors and exploratory coordinates
 Ldd = L(:,1,1);
 Ldq = L(:,1,2);
 Ldf = L(:,1,3);
@@ -272,131 +183,232 @@ Lqf = L(:,2,3);
 
 kd = Ldf ./ Ldd;
 kq = Lqf ./ Lqq;
-
-% These original ratios are local component-cancellation slopes: a common
-% reduction psi_d(s,g), psi_q(s,g) need not exist when cross terms matter.
-% Small/zero Ldd or Lqq can make the ratios large/nonfinite; leave visible.
+% Local component-cancellation slopes; cross terms need not permit a common
+% reduction psi_d(s,g), psi_q(s,g). Small denominators stay visible.
 fprintf('kd min/max: %.6g %.6g; kq min/max: %.6g %.6g\n', ...
     min(kd),max(kd),min(kq),max(kq));
 fprintf('Nonfinite kd/kq: %d / %d\n',sum(~isfinite(kd)),sum(~isfinite(kq)));
-
-
-%% Plot Inductance Ldd and Lqq 
-
-
-figure()
-t = tiledlayout(1,2);
-axDd = nexttile(t,1);
-axQq = nexttile(t,2);
-hold(axDd,'on');
-hold(axQq,'on');
-
-for idx = 1:numel(i_f_bp)
-    mask = i_f == i_f_bp(idx);
-    label = sprintf("i_f = %.2f A", i_f_bp(idx));
-    scatter3(axDd, i_d(mask), i_q(mask), Ldd(mask), ...
-        'filled', DisplayName=label);
-
-    scatter3(axQq, i_d(mask), i_q(mask), Lqq(mask), ...
-        'filled', DisplayName=label);
-end 
-xlabel(axDd,'i_d in A'); ylabel(axDd,'i_q in A'); zlabel(axDd,'Ldd in H');
-xlabel(axQq,'i_d in A'); ylabel(axQq,'i_q in A'); zlabel(axQq,'Lqq in H');
-grid(axDd,'on'); grid(axQq,'on');
-view(axDd,3); view(axQq,3);
-legend(axDd,'show'); legend(axQq,'show');
-
-%% 
-
 s = i_d + kd.*i_f;
 g = i_q + kq.*i_f;
-% Keep these definitions as exploratory coordinates. Pointwise kd/kq do
-% not define a global energy-coordinate transform. L below still contains
-% derivatives with respect to physical i_d,i_q,i_f, only plotted against s,g.
+% These pointwise coordinates are not a global energy-coordinate transform.
+% Inductances plotted against s,g remain derivatives in physical i_d,i_q,i_f.
 
-figure()
-tiledlayout(1,2)
-
-nexttile
-scatter3(s,g,psi_d)
-xlabel("s in A"), ylabel("g in A"), zlabel("psi_d in Vs")
-nexttile
-scatter3(s,g,psi_q)
-xlabel("s in A"), ylabel("g in A"), zlabel("psi_q in Vs")
-
-%% Inductance Plot 
-
-figure()
-t = tiledlayout(2,3, 'TileSpacing','compact', 'Padding','compact');
-
-L_name = ["Ldd", "Ldq", "Ldf";
-          "Lqd", "Lqq", "Lqf"];
-
-ax = gobjects(2,3);
-
-for r = 1:2
-    for c = 1:3
-        ax(r,c) = nexttile(t, (r-1)*3+c);
-        hold(ax(r,c), 'on');
-
-        for idx = 1:numel(i_f_bp)
-            mask = i_f == i_f_bp(idx);
-
-            scatter3(ax(r,c), s(mask), g(mask), L(mask,r,c), ...
-                12, 'filled', ...
-                DisplayName=sprintf('i_f = %.2f A', i_f_bp(idx)));
+%% Slice geometry and field-current colors, reused by the physical plots
+field_colors = turbo(numel(i_f_bp));
+field_labels = compose("i_f = %.2f A",i_f_bp);
+field_tags = compose("field_level_%d",1:numel(i_f_bp));
+slice_rows = cell(numel(i_f_bp),1);
+slice_tri = cell(numel(i_f_bp),1);
+for idx = 1:numel(i_f_bp)
+    rows = find(i_f == i_f_bp(idx));
+    % Repeated requested coordinates have the same fitted values. Keep one
+    % vertex for meshing; the fit and measured scatter data are untouched.
+    [xy,first] = unique(X(rows,1:2),'rows');
+    slice_rows{idx} = rows(first);
+    xy_scaled = (xy-origin(1:2))./scale(1:2);
+    tri = zeros(0,3);
+    removed = 0;
+    if size(xy,1) >= 3 && rank(xy_scaled-mean(xy_scaled,1)) == 2
+        mesh = delaunayTriangulation(xy_scaled);
+        tri = mesh.ConnectivityList;
+        edge = edges(mesh);
+        lengths = sqrt(sum((xy_scaled(edge(:,1),:)-xy_scaled(edge(:,2),:)).^2,2));
+        spacing = accumarray(edge(:),[lengths;lengths],[size(xy,1),1],@min);
+        % Reject edges longer than 2.5 local nearest-neighbor spacings.
+        % This limits bridges across gaps; small/unresolved holes can remain.
+        keep = true(size(tri,1),1);
+        longest = zeros(size(tri,1),1);
+        for pair = [1 2;2 3;3 1]'
+            vertices = tri(:,pair);
+            length_edge = sqrt(sum((xy_scaled(vertices(:,1),:)- ...
+                xy_scaled(vertices(:,2),:)).^2,2));
+            local_spacing = reshape(spacing(vertices),size(vertices));
+            keep = keep & length_edge <= 2.5*max(local_spacing,[],2);
+            longest = max(longest,length_edge);
         end
-
-        xlabel(ax(r,c), 's in A');
-        ylabel(ax(r,c), 'g in A');
-        zlabel(ax(r,c), L_name(r,c) + " in H");
-        title(ax(r,c), L_name(r,c));
-
-        grid(ax(r,c), 'on');
-        view(ax(r,c), 3);
-        legend(ax(r,c), 'show');
+        ab = xy_scaled(tri(:,2),:)-xy_scaled(tri(:,1),:);
+        ac = xy_scaled(tri(:,3),:)-xy_scaled(tri(:,1),:);
+        twice_area = abs(ab(:,1).*ac(:,2)-ab(:,2).*ac(:,1));
+        keep = keep & twice_area > 0.05*longest.^2; % remove thin slivers
+        removed = sum(~keep);
+        tri = tri(keep,:);
+    end
+    slice_tri{idx} = tri;
+    fprintf('i_f=%g A: %d vertices, %d duplicates, %d triangles, %d rejected\n', ...
+        i_f_bp(idx),size(xy,1),numel(rows)-numel(first),size(tri,1),removed);
+    if isempty(tri)
+        fprintf('  No reliable 2D surface: showing points for this slice.\n');
     end
 end
+fprintf('Relative field flux / DeltaLff omitted points: %d / %d\n', ...
+    sum(~isfinite(psi_f_rel)),sum(~isfinite(DeltaLff)));
 
-linkprop(ax(:), {'CameraPosition', 'CameraTarget', 'CameraUpVector', 'CameraViewAngle'});
-
-
-
-%% Plot kd kq 
-figure()
-t = tiledlayout(1,2);
-
-axD = nexttile(t,1);
-axQ = nexttile(t,2);
-
-hold(axD, 'on');
-hold(axQ, 'on');
-
+%% Relative field flux: all field-current levels in one axes
+figField = figure('Name','Relative field flux','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figField,1,1,'TileSpacing','compact','Padding','compact');
+axF = nexttile(t);
+hold(axF,'on');
+handles = gobjects(numel(i_f_bp),1);
 for idx = 1:numel(i_f_bp)
-    mask = i_f == i_f_bp(idx);
-    L_name = sprintf("i_f = %.2f A", i_f_bp(idx));
-    scatter3(axD, i_d(mask), i_q(mask), kd(mask), ...
-        'filled', DisplayName=L_name);
+    rows = slice_rows{idx};
+    handles(idx) = plot_field_slice(axF,X(rows,1:2),psi_f_rel(rows), ...
+        slice_tri{idx},field_colors(idx,:),field_tags(idx),field_labels(idx));
+end
+xlabel(axF,'i_d in A'); ylabel(axF,'i_q in A'); zlabel(axF,'psi_f,rel in Vs');
+title(axF,sprintf('Relative to (i_d, i_q) = (%g, %g) A',i_d_ref,i_q_ref));
+view(axF,3); grid(axF,'on');
+lgd = legend(axF,handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
 
-    scatter3(axQ, i_d(mask), i_q(mask), kq(mask), ...
-        'filled', DisplayName=L_name);
-end 
+%% Reconstructed stator fluxes
+figPsi = figure('Name','Reconstructed stator fluxes','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figPsi,1,2,'TileSpacing','compact','Padding','compact');
+psi_names = ["psi_d","psi_q"];
+for c = 1:2
+    ax = nexttile(t,c);
+    hold(ax,'on');
+    for idx = 1:numel(i_f_bp)
+        rows = slice_rows{idx};
+        h = plot_field_slice(ax,X(rows,1:2),Psi(rows,c),slice_tri{idx}, ...
+            field_colors(idx,:),field_tags(idx),field_labels(idx));
+        if c == 1, handles(idx) = h; end
+    end
+    xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
+    zlabel(ax,psi_names(c)+" in Vs"); title(ax,psi_names(c));
+    view(ax,3); grid(ax,'on');
+end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
 
-xlabel(axD, 'i_d in A');
-ylabel(axD, 'i_q in A');
-zlabel(axD, 'k_d in A/A');
-title(axD, 'Local k_d');
+%% Differential inductance matrix: independent cameras and z ranges
+% L remains N-by-2-by-3. The third display row contains derived couplings
+% and reference-relative DeltaLff, never an identified absolute Lff.
+L_display = [Ldd,Ldq,Ldf,Lqd,Lqq,Lqf,Lfd,Lfq,DeltaLff];
+L_names = ["Ldd","Ldq","Ldf","Lqd","Lqq","Lqf","Lfd","Lfq","\Delta Lff"];
+figL = figure('Name','Differential inductance matrix','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figL,3,3,'TileSpacing','loose','Padding','compact');
+for panel = 1:9
+    ax = nexttile(t,panel);
+    hold(ax,'on');
+    for idx = 1:numel(i_f_bp)
+        rows = slice_rows{idx};
+        h = plot_field_slice(ax,X(rows,1:2),L_display(rows,panel), ...
+            slice_tri{idx},field_colors(idx,:),field_tags(idx),field_labels(idx));
+        if panel == 1, handles(idx) = h; end
+    end
+    xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
+    zlabel(ax,L_names(panel)+" in H"); title(ax,L_names(panel));
+    view(ax,3); grid(ax,'on');
+end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
+% The former separate Ldd/Lqq figure duplicated the first and fifth panels.
+% Do not link absolute cameras: each inductance has a different height scale.
 
-xlabel(axQ, 'i_d in A');
-ylabel(axQ, 'i_q in A');
-zlabel(axQ, 'k_q in A/A');
-title(axQ, 'Local k_q');
+%% Measured fluxes in the exploratory s,g coordinates
+% Use scatter here: pointwise factors can fold the coordinates, so physical
+% slice triangles would create misleading surfaces after this transformation.
+figSG = figure('Name','Measured fluxes in s,g','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figSG,1,2,'TileSpacing','compact','Padding','compact');
+for c = 1:2
+    ax = nexttile(t,c);
+    hold(ax,'on');
+    for idx = 1:numel(i_f_bp)
+        mask = i_f == i_f_bp(idx);
+        h = scatter3(ax,s(mask),g(mask),Y(mask,c),10,field_colors(idx,:), ...
+            'filled','Tag',field_tags(idx),'DisplayName',field_labels(idx));
+        if c == 1, handles(idx) = h; end
+    end
+    xlabel(ax,'s in A'); ylabel(ax,'g in A');
+    zlabel(ax,psi_names(c)+" in Vs"); title(ax,psi_names(c));
+    view(ax,3); grid(ax,'on');
+end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
 
-view(axD, 3);
-view(axQ, 3);
+%% Physical stator inductances plotted against s,g
+figLSG = figure('Name','Stator inductances in s,g','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figLSG,2,3,'TileSpacing','loose','Padding','compact');
+for panel = 1:6
+    ax = nexttile(t,panel);
+    hold(ax,'on');
+    for idx = 1:numel(i_f_bp)
+        mask = i_f == i_f_bp(idx);
+        h = scatter3(ax,s(mask),g(mask),L_display(mask,panel),10, ...
+            field_colors(idx,:),'filled','Tag',field_tags(idx), ...
+            'DisplayName',field_labels(idx));
+        if panel == 1, handles(idx) = h; end
+    end
+    xlabel(ax,'s in A'); ylabel(ax,'g in A');
+    zlabel(ax,L_names(panel)+" in H"); title(ax,L_names(panel));
+    view(ax,3); grid(ax,'on');
+end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
 
-grid(axD, 'on');
-grid(axQ, 'on');
+%% Local factors: points preserve large ratios near small denominators
+figK = figure('Name','Local factors','NumberTitle','off', ...
+    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+t = tiledlayout(figK,1,2,'TileSpacing','compact','Padding','compact');
+k_values = [kd,kq];
+k_names = ["k_d","k_q"];
+for c = 1:2
+    ax = nexttile(t,c);
+    hold(ax,'on');
+    for idx = 1:numel(i_f_bp)
+        mask = i_f == i_f_bp(idx);
+        h = scatter3(ax,i_d(mask),i_q(mask),k_values(mask,c),10, ...
+            field_colors(idx,:),'filled','Tag',field_tags(idx), ...
+            'DisplayName',field_labels(idx));
+        if c == 1, handles(idx) = h; end
+    end
+    xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
+    zlabel(ax,k_names(c)+" in A/A"); title(ax,"Local "+k_names(c));
+    view(ax,3); grid(ax,'on');
+end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
 
-legend(axD, 'show');
-legend(axQ, 'show');
+%% Small plotting helpers
+function h = plot_field_slice(ax,xy,height,tri,color,tag,label)
+% Remove faces touching invalid values without retriangulating across holes.
+valid = isfinite(height);
+tri = tri(all(reshape(valid(tri),size(tri)),2),:);
+if isempty(tri)
+    h = scatter3(ax,xy(valid,1),xy(valid,2),height(valid),12,color, ...
+        'filled','Tag',tag,'DisplayName',label);
+else
+    h = trisurf(tri,xy(:,1),xy(:,2),height,'Parent',ax, ...
+        'FaceColor',color,'FaceAlpha',0.55,'EdgeColor','none', ...
+        'Tag',tag,'DisplayName',label);
+    used = false(size(height));
+    used(tri(:)) = true;
+    isolated = valid & ~used;
+    if any(isolated)
+        scatter3(ax,xy(isolated,1),xy(isolated,2),height(isolated),12,color, ...
+            'filled','Tag',tag,'HandleVisibility','off');
+    end
+end
+end
+
+function toggle_field_level(lgd,event)
+% findall also finds hidden objects; the legend remains clickable to restore.
+fig = ancestor(lgd,'figure');
+objects = findall(fig,'Tag',event.Peer.Tag);
+if strcmp(event.Peer.Visible,'on')
+    set(objects,'Visible','off');
+else
+    set(objects,'Visible','on');
+end
+end
