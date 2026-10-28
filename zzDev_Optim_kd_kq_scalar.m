@@ -1,36 +1,43 @@
 eval_set = load_data();
 meas = eval_set.measurement;
 
+%% Measurement Data
+
+i_d = meas.id_req(:);
+i_q = meas.iq_req(:);
+i_f = meas.ie_req(:);
+
+psi_d = meas.psi_d(:);
+psi_q = meas.psi_q(:);
+
+X = [i_d, i_q, i_f];
+Y = [psi_d, psi_q];
+
 %% Physical currents and energy convention
 
-% load_data maps these channels directly from PE_Id/Iq_meas_avg and
-% I_exc_meas, without a winding-ratio conversion. Use measured currents for
-% physical derivatives; requested excitation only identifies plotting groups.
-id = meas.id_meas(:);
-iq = meas.iq_meas(:);
-ie = meas.ie_meas(:);
-ie_group = meas.ie_req(:);
-psid = meas.psi_d(:); 
-psiq = meas.psi_q(:); 
+% For this EESM, i_f denotes physical field-winding current. Requested
+% currents represent the winding currents here: tracking and calibration
+% are assumed, not verified. load_data applies no winding-ratio conversion;
+% the underlying measurement field names stay unchanged.
 
 % Resources/GUI_VICE-MeasurementEvalKit/SourceCode/file_prepare.m and saved
 % Total.OptimParam use '3 Phase', factor 3/2. The local research notes in
 % Resources/Research/magnetic_coenergy also check power and torque identities.
-% Amplitude-invariant dq: dW = 1.5*(psi_d*did + psi_q*diq) + psi_r*die.
-% Assume I_exc_meas is the physical rotor winding current ir, with the same
-% positive orientation. Sensor calibration/rotor turns are not established
-% here. If ir=a*ie, psi_r=(dW/die)/a instead. Power-invariant dq needs factor 1.
+% Amplitude-invariant dq:
+% dW_coenergy = 1.5*(psi_d*di_d + psi_q*di_q) + psi_f*di_f.
+% The physical field-current orientation must match i_f. If physical field
+% current = a*i_f instead, physical psi_f = (dW_coenergy/di_f)/a.
+% Power-invariant dq needs factor 1. No field-turns calibration is inferred.
 % A reversible, quasi-static map at fixed rotor angle/temperature is assumed;
 % hysteresis, losses and operating-point drift can violate this approximation.
+% Future ASM field coordinates need a defined transformation; a PMSM has
+% no independently controllable physical field current. Neither is added here.
 dq_weight = 3/2;
 
-ie_bp = unique(ie_group);
-ie_bp = [min(ie_bp), max(ie_bp)];
-% ie_bp = ie_bp(1:2:end);
+i_f_bp = unique(i_f);
+i_f_bp = [min(i_f_bp), max(i_f_bp)];
+% i_f_bp = i_f_bp(1:2:end);
 
-
-X = [id, iq, ie];
-Y = [psid, psiq];
 
 % Normalize the current coordinates
 origin = min(X);
@@ -55,30 +62,33 @@ R2 = sum((reshape(Z, [], 1, 3) - ...
 Phi = exp(-R2 / sigma^2);
 
 % Linear/quadratic terms give constant flux offsets and a constant Hessian.
-% Omit 1, ze, ze^2: stator data cannot determine ANY additive C(ie).
-zd = Z(:,1); zq = Z(:,2); ze = Z(:,3);
-P = [zd, zq, zd.^2/2, zd.*zq, zq.^2/2, zd.*ze, zq.*ze];
+% Omit 1, z_f, z_f^2: stator data cannot determine ANY additive C(i_f).
+z_d = Z(:,1); z_q = Z(:,2); z_f = Z(:,3);
+P = [z_d, z_q, z_d.^2/2, z_d.*z_q, z_q.^2/2, z_d.*z_f, z_q.*z_f];
 one = ones(size(Z,1),1);
 zero = zeros(size(Z,1),1);
-dP = {[one, zero, zd, zq, zero, ze, zero], ...
-      [zero, one, zero, zd, zq, zero, ze]};
+dP = {[one, zero, z_d, z_q, zero, z_f, zero], ...
+      [zero, one, zero, z_d, z_q, zero, z_f]};
 dPhi = cell(1,3);
 for r = 1:3
     dPhi{r} = -2/sigma^2 * (Z(:,r) - centers(:,r)').*Phi;
 end
 
-% W = coenergy_scale * [P Phi]*coeff. This current scale (A) keeps
+% W_coenergy = coenergy_scale * [P Phi]*coeff. This current scale (A) keeps
 % coefficients in Vs and the existing ridge parameter on a flux-like scale.
 coenergy_scale = dq_weight * mean(scale(1:2));
 Ad = coenergy_scale/(dq_weight*scale(1)) * [dP{1}, dPhi{1}];
 Aq = coenergy_scale/(dq_weight*scale(2)) * [dP{2}, dPhi{2}];
 regularization = [zeros(n_centers,7), sqrt(lambda)*eye(n_centers)];
-coeff = [Ad; Aq; regularization] \ [psid; psiq; zeros(n_centers,1)];
-% Ridge chooses one finite-basis representative, not an identified C(ie).
+coeff = [Ad; Aq; regularization] \ [psi_d; psi_q; zeros(n_centers,1)];
+% Ridge chooses one finite-basis representative, not an identified C(i_f).
+W_coenergy = coenergy_scale * (P*coeff(1:7) + Phi*coeff(8:end)); % J
+% W_coenergy has an arbitrary field-current-only term; only differences
+% at the same i_f are observable from the stator data.
 Psi = [Ad*coeff, Aq*coeff];
 
 % Each physical Hessian entry needs 1/(scale(r)*scale(c)). Divide stator
-% rows by 1.5 to get dpsi_d,q/di_c. No rotor self-inductance is inferred.
+% rows by 1.5 to get dpsi_d,q/di_c. No field self-inductance is inferred.
 L = zeros(size(Z,1),2,3);
 quadratic_index = [3,4,6; 4,5,7];
 for r = 1:2
@@ -89,34 +99,36 @@ for r = 1:2
             (coeff(quadratic_index(r,c)) + d2Phi*coeff(8:end));
     end
 end
-% Weighted reciprocity: Lrd=1.5*Lde, Lrq=1.5*Lqe, while Ldq=Lqd.
-Lrd = dq_weight*L(:,1,3);
-Lrq = dq_weight*L(:,2,3);
+% Weighted reciprocity: Lfd=1.5*Ldf, Lfq=1.5*Lqf, while Ldq=Lqd.
+Lfd = dq_weight*L(:,1,3);
+Lfq = dq_weight*L(:,2,3);
 
-%% Relative rotor flux: subtract the reference curve at the SAME ie
-id_ref = 0; % A; near the center of the measured stator-current domain
-iq_ref = 0; % A
-Z_ref = [(id_ref-origin(1))/scale(1)*one, ...
-         (iq_ref-origin(2))/scale(2)*one, ze];
-zd_ref = Z_ref(:,1); zq_ref = Z_ref(:,2);
-P_ref = [zd_ref, zq_ref, zd_ref.^2/2, zd_ref.*zq_ref, ...
-         zq_ref.^2/2, zd_ref.*ze, zq_ref.*ze];
+%% Relative field flux: subtract the reference curve at the SAME i_f
+i_d_ref = 0; % A; near the center of the measured stator-current domain
+i_q_ref = 0; % A
+Z_ref = [(i_d_ref-origin(1))/scale(1)*one, ...
+         (i_q_ref-origin(2))/scale(2)*one, z_f];
+z_d_ref = Z_ref(:,1); z_q_ref = Z_ref(:,2);
+P_ref = [z_d_ref, z_q_ref, z_d_ref.^2/2, z_d_ref.*z_q_ref, ...
+         z_q_ref.^2/2, z_d_ref.*z_f, z_q_ref.*z_f];
 R2_ref = sum((reshape(Z_ref,[],1,3) - reshape(centers,1,[],3)).^2,3);
 Phi_ref = exp(-R2_ref/sigma^2);
-dPhi_e_ref = -2/sigma^2 * (ze-centers(:,3)').*Phi_ref;
-W_relative = coenergy_scale * ((P-P_ref)*coeff(1:7) + ...
-    (Phi-Phi_ref)*coeff(8:end)); % J; W(id,iq,ie)-W(id_ref,iq_ref,ie)
+dPhi_f_ref = -2/sigma^2 * (z_f-centers(:,3)').*Phi_ref;
+W_coenergy_rel = coenergy_scale * ((P-P_ref)*coeff(1:7) + ...
+    (Phi-Phi_ref)*coeff(8:end)); % J; W_coenergy(X)-W_coenergy(X_ref)
 % Use the same expression for measured points and the reference diagnostic.
-rotor_flux_difference = @(z_d,z_q,dPhi_e) coenergy_scale/scale(3) * ...
-    ((z_d-zd_ref)*coeff(6) + (z_q-zq_ref)*coeff(7) + ...
-     (dPhi_e-dPhi_e_ref)*coeff(8:end));
-psi_r_rel = rotor_flux_difference(zd,zq,dPhi{3}); % Vs, assuming ie=ir
-% C'(ie) cancels exactly. Absolute psi_r and Lrr remain unidentifiable.
+field_flux_difference = @(z_d,z_q,dPhi_f) coenergy_scale/scale(3) * ...
+    ((z_d-z_d_ref)*coeff(6) + (z_q-z_q_ref)*coeff(7) + ...
+     (dPhi_f-dPhi_f_ref)*coeff(8:end));
+psi_f_rel = field_flux_difference(z_d,z_q,dPhi{3}); % Vs, with physical i_f
+% C'(i_f) cancels exactly. Absolute psi_f and Lff remain unidentifiable.
+% dpsi_f = Lfd*di_d + Lfq*di_q + Lff*di_f; at fixed i_f the last term is zero.
+% L stores only the two stator rows; Lfd/Lfq above follow weighted reciprocity.
 % A convex hull is only a support approximation; it cannot detect data gaps.
 current_hull = delaunayTriangulation(Z);
 reference_supported = ~isnan(pointLocation(current_hull,Z_ref));
-W_relative(~reference_supported) = NaN;
-psi_r_rel(~reference_supported) = NaN;
+W_coenergy_rel(~reference_supported) = NaN;
+psi_f_rel(~reference_supported) = NaN;
 
 %% Lightweight diagnostics (in-sample, not independent validation)
 flux_error = Psi-Y;
@@ -126,10 +138,10 @@ fprintf('Coenergy flux max abs error [d q] in Vs: %.6g %.6g\n', ...
     max(abs(flux_error),[],1));
 fprintf('Max |Ldq-Lqd| in H: %.6g\n',max(abs(L(:,1,2)-L(:,2,1))));
 fprintf('Reference (%g, %g) A: %d/%d reference-curve points supported\n', ...
-    id_ref,iq_ref,sum(reference_supported),numel(ie));
-psi_r_ref_rel = rotor_flux_difference(zd_ref,zq_ref,dPhi_e_ref);
-fprintf('Max |psi_r_rel at reference| in Vs: %.6g (by construction)\n', ...
-    max(abs(psi_r_ref_rel)));
+    i_d_ref,i_q_ref,sum(reference_supported),numel(i_f));
+psi_f_ref_rel = field_flux_difference(z_d_ref,z_q_ref,dPhi_f_ref);
+fprintf('Max |psi_f_rel at reference| in Vs: %.6g (by construction)\n', ...
+    max(abs(psi_f_ref_rel)));
 fprintf('Differential L min/max in H: %.6g %.6g; nonfinite: %d\n', ...
     min(L,[],'all'),max(L,[],'all'),sum(~isfinite(L),'all'));
 fprintf('Nonpositive Ldd/Lqq: %d / %d points (not clipped)\n', ...
@@ -148,30 +160,30 @@ fprintf('Independent flux RMSE [d q] in Vs: %.6g %.6g\n', ...
     sqrt(mean(error_ind.^2,1)));
 fprintf('Independent Ldq-Lqd RMS/max abs in H: %.6g %.6g\n', ...
     sqrt(mean(curl_ind.^2)),max(abs(curl_ind)));
-% For continuous fields on a simply connected supported slice, rotor path
-% independence requires dLrd/diq=dLrq/did. For independent flux fits this is
-% 1.5*d/die(Ldq-Lqd)=0; stator curl itself is a stronger energy diagnostic.
-% One smooth scalar W enforces these equalities, not measurement consistency.
-% Next: small measured-flux loop integrals inside each excitation slice and
-% residuals by slice/repetition; only then compare independent rotor paths.
+% For continuous fields on a simply connected supported slice, field-flux
+% path independence requires dLfd/di_q=dLfq/di_d. For independent flux fits
+% this is 1.5*d/di_f(Ldq-Lqd)=0; stator curl is a stronger energy diagnostic.
+% One smooth scalar W_coenergy enforces these equalities, not measurement
+% consistency. Next: measured-flux loop integrals inside each field-current
+% slice and residuals by slice/repetition, then independent field-flux paths.
 
-%% Relative rotor flux plot
+%% Relative field flux plot
 figure()
-t = tiledlayout(1,numel(ie_bp));
-for idx = 1:numel(ie_bp)
-    axR = nexttile(t,idx);
-    axR.Toolbar.Visible = 'off';
-    mask = ie_group == ie_bp(idx) & reference_supported;
-    scatter3(axR,id(mask),iq(mask),psi_r_rel(mask),12,'filled');
-    xlabel(axR,'i_d in A');
-    ylabel(axR,'i_q in A');
-    zlabel(axR,'psi_r,rel in Vs');
-    title(axR,sprintf('i_e group = %.2f A',ie_bp(idx)));
-    grid(axR,'on');
-    view(axR,3);
+t = tiledlayout(1,numel(i_f_bp));
+for idx = 1:numel(i_f_bp)
+    axF = nexttile(t,idx);
+    axF.Toolbar.Visible = 'off';
+    mask = i_f == i_f_bp(idx) & reference_supported;
+    scatter3(axF,i_d(mask),i_q(mask),psi_f_rel(mask),12,'filled');
+    xlabel(axF,'i_d in A');
+    ylabel(axF,'i_q in A');
+    zlabel(axF,'psi_f,rel in Vs');
+    title(axF,sprintf('i_f = %.2f A',i_f_bp(idx)));
+    grid(axF,'on');
+    view(axF,3);
 end
-% Points use measured ie within each requested group, not exact constant-ie
-% surfaces. Unsupported reference points are omitted, not extrapolated.
+% Slices use requested i_f; physical currents may differ through tracking.
+% Unsupported reference points are omitted, not extrapolated.
 
 %% Psi Plot 
 
@@ -184,13 +196,13 @@ axQ = nexttile(t,2);
 hold(axD, 'on');
 hold(axQ, 'on');
 
-for idx = 1:numel(ie_bp)
-    mask = ie_group == ie_bp(idx);
-    label = sprintf("ie = %.2f A", ie_bp(idx));
-    scatter3(axD, id(mask), iq(mask), Psi(mask,1), ...
+for idx = 1:numel(i_f_bp)
+    mask = i_f == i_f_bp(idx);
+    label = sprintf("i_f = %.2f A", i_f_bp(idx));
+    scatter3(axD, i_d(mask), i_q(mask), Psi(mask,1), ...
         'filled', DisplayName=label);
 
-    scatter3(axQ, id(mask), iq(mask), Psi(mask,2), ...
+    scatter3(axQ, i_d(mask), i_q(mask), Psi(mask,2), ...
         'filled', DisplayName=label);
 end 
 
@@ -216,8 +228,8 @@ legend(axQ, 'show');
 figure()
 t = tiledlayout(2,3, 'TileSpacing','compact', 'Padding','compact');
 
-L_name = ["Ldd", "Ldq", "Lde";
-          "Lqd", "Lqq", "Lqe"];
+L_name = ["Ldd", "Ldq", "Ldf";
+          "Lqd", "Lqq", "Lqf"];
 
 ax = gobjects(2,3);
 
@@ -226,12 +238,12 @@ for r = 1:2
         ax(r,c) = nexttile(t, (r-1)*3+c);
         hold(ax(r,c), 'on');
 
-        for idx = 1:numel(ie_bp)
-            mask = ie_group == ie_bp(idx);
+        for idx = 1:numel(i_f_bp)
+            mask = i_f == i_f_bp(idx);
 
-            scatter3(ax(r,c), id(mask), iq(mask), L(mask,r,c), ...
+            scatter3(ax(r,c), i_d(mask), i_q(mask), L(mask,r,c), ...
                 12, 'filled', ...
-                DisplayName=sprintf('i_e = %.2f A', ie_bp(idx)));
+                DisplayName=sprintf('i_f = %.2f A', i_f_bp(idx)));
         end
 
         xlabel(ax(r,c), 'i_d in A');
@@ -253,13 +265,13 @@ linkprop(ax(:), {'CameraPosition', 'CameraTarget', 'CameraUpVector', 'CameraView
 
 Ldd = L(:,1,1);
 Ldq = L(:,1,2);
-Lde = L(:,1,3);
+Ldf = L(:,1,3);
 Lqd = L(:,2,1);
 Lqq = L(:,2,2);
-Lqe = L(:,2,3);
+Lqf = L(:,2,3);
 
-kd = Lde ./ Ldd;
-kq = Lqe ./ Lqq;
+kd = Ldf ./ Ldd;
+kq = Lqf ./ Lqq;
 
 % These original ratios are local component-cancellation slopes: a common
 % reduction psi_d(s,g), psi_q(s,g) need not exist when cross terms matter.
@@ -279,13 +291,13 @@ axQq = nexttile(t,2);
 hold(axDd,'on');
 hold(axQq,'on');
 
-for idx = 1:numel(ie_bp)
-    mask = ie_group == ie_bp(idx);
-    label = sprintf("ie = %.2f A", ie_bp(idx));
-    scatter3(axDd, id(mask), iq(mask), Ldd(mask), ...
+for idx = 1:numel(i_f_bp)
+    mask = i_f == i_f_bp(idx);
+    label = sprintf("i_f = %.2f A", i_f_bp(idx));
+    scatter3(axDd, i_d(mask), i_q(mask), Ldd(mask), ...
         'filled', DisplayName=label);
 
-    scatter3(axQq, id(mask), iq(mask), Lqq(mask), ...
+    scatter3(axQq, i_d(mask), i_q(mask), Lqq(mask), ...
         'filled', DisplayName=label);
 end 
 xlabel(axDd,'i_d in A'); ylabel(axDd,'i_q in A'); zlabel(axDd,'Ldd in H');
@@ -296,29 +308,29 @@ legend(axDd,'show'); legend(axQq,'show');
 
 %% 
 
-s = id + kd.*ie; 
-g = iq + kq.*ie; 
+s = i_d + kd.*i_f;
+g = i_q + kq.*i_f;
 % Keep these definitions as exploratory coordinates. Pointwise kd/kq do
 % not define a global energy-coordinate transform. L below still contains
-% derivatives with respect to physical id,iq,ie, only plotted against s,g.
+% derivatives with respect to physical i_d,i_q,i_f, only plotted against s,g.
 
 figure()
 tiledlayout(1,2)
 
 nexttile
-scatter3(s,g,psid)
-xlabel("s"), ylabel("g")
+scatter3(s,g,psi_d)
+xlabel("s in A"), ylabel("g in A"), zlabel("psi_d in Vs")
 nexttile
-scatter3(s,g,psiq)
-xlabel("s"), ylabel("g")
+scatter3(s,g,psi_q)
+xlabel("s in A"), ylabel("g in A"), zlabel("psi_q in Vs")
 
 %% Inductance Plot 
 
 figure()
 t = tiledlayout(2,3, 'TileSpacing','compact', 'Padding','compact');
 
-L_name = ["Ldd", "Ldq", "Lde";
-          "Lqd", "Lqq", "Lqe"];
+L_name = ["Ldd", "Ldq", "Ldf";
+          "Lqd", "Lqq", "Lqf"];
 
 ax = gobjects(2,3);
 
@@ -327,12 +339,12 @@ for r = 1:2
         ax(r,c) = nexttile(t, (r-1)*3+c);
         hold(ax(r,c), 'on');
 
-        for idx = 1:numel(ie_bp)
-            mask = ie_group == ie_bp(idx);
+        for idx = 1:numel(i_f_bp)
+            mask = i_f == i_f_bp(idx);
 
             scatter3(ax(r,c), s(mask), g(mask), L(mask,r,c), ...
                 12, 'filled', ...
-                DisplayName=sprintf('i_e = %.2f A', ie_bp(idx)));
+                DisplayName=sprintf('i_f = %.2f A', i_f_bp(idx)));
         end
 
         xlabel(ax(r,c), 's in A');
@@ -360,13 +372,13 @@ axQ = nexttile(t,2);
 hold(axD, 'on');
 hold(axQ, 'on');
 
-for idx = 1:numel(ie_bp)
-    mask = ie_group == ie_bp(idx);
-    L_name = sprintf("ie = %.2f A", ie_bp(idx));
-    scatter3(axD, id(mask), iq(mask), kd(mask), ...
+for idx = 1:numel(i_f_bp)
+    mask = i_f == i_f_bp(idx);
+    L_name = sprintf("i_f = %.2f A", i_f_bp(idx));
+    scatter3(axD, i_d(mask), i_q(mask), kd(mask), ...
         'filled', DisplayName=L_name);
 
-    scatter3(axQ, id(mask), iq(mask), kq(mask), ...
+    scatter3(axQ, i_d(mask), i_q(mask), kq(mask), ...
         'filled', DisplayName=L_name);
 end 
 
