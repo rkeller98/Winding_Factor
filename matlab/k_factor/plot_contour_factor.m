@@ -34,159 +34,26 @@ fig = figure('Visible', 'on', 'Name', 'Contour-factor analysis', ...
 theme(fig, 'light');
 tabs = uitabgroup(fig, 'Tag', 'contour_tabs');
 
-measured_tab = uitab(tabs, 'Title', 'Measured flux maps', 'Tag', 'measured_flux');
-shifted_tab = uitab(tabs, 'Title', 'Shifted measured maps', 'Tag', 'shifted_flux');
+flux_tab = uitab(tabs, 'Title', 'Flux', 'Tag', 'flux');
+flux_tabs = uitabgroup(flux_tab);
+plot_field_tabs(flux_tabs, currents, flux, reconstructed_flux, groups, ...
+    excitation, triangles, reduction.s, k, 'flux', ...
+    {flux_label(1), flux_label(2)}, 'mVs', 'flux');
+
+inductance_tab = uitab(tabs, 'Title', 'Inductance', 'Tag', 'inductance');
+inductance_tabs = uitabgroup(inductance_tab);
+inductance = measured_inductance(currents, flux, groups, triangles);
+reconstructed = reconstructed_inductance(map, currents);
+plot_field_tabs(inductance_tabs, currents, inductance, reconstructed, groups, ...
+    excitation, triangles, reduction.s, k, 'inductance', ...
+    {'L_{dd} in mH', 'L_{dq} in mH', 'L_{qd} in mH', 'L_{qq} in mH'}, ...
+    'mH', 'inductance');
+
 reduced_tab = uitab(tabs, 'Title', 'Fixed reduced reference map', 'Tag', 'reduced_flux');
-reconstructed_tab = uitab(tabs, 'Title', 'Reconstruction', 'Tag', 'reconstructed_flux');
-comparison_tab = uitab(tabs, 'Title', 'Measured + reconstructed', 'Tag', 'measured_reconstructed_flux');
 error_tab = uitab(tabs, 'Title', 'Reconstruction error');
 error_tabs = uitabgroup(error_tab);
-excitation_limits = [min(currents(:, 3)), max(currents(:, 3))];
-excitation_fraction = (currents(:, 3) - excitation_limits(1)) ...
-    / max(diff(excitation_limits), eps);
-measured_colors = interp1(linspace(0, 1, 256), turbo(256), excitation_fraction);
-
-% Keep each group's original mesh, also when shifting its d-current to s.
-field_values = {flux, flux, reconstructed_flux, flux};
-field_names = {'Measured flux fields', ...
-    sprintf('Measured fields shifted to s = i_d + k i_e, k = %.5f A/A', k), ...
-    'Flux reconstructed from F(s, i_q)', 'Measured and reconstructed flux fields'};
-field_tabs = [measured_tab, shifted_tab, reconstructed_tab, comparison_tab];
 current_columns = {[2 1], [1 2]};
 current_labels = {'i_q in A', 'i_d in A'; 'i_d in A', 'i_q in A'};
-field_meshes = gobjects(numel(group_ids), 2, numel(field_tabs));
-comparison_meshes = gobjects(numel(group_ids), 2);
-comparison_points = gobjects(numel(group_ids), 2);
-group_checks = gobjects(numel(group_ids), numel(field_tabs));
-show_buttons = gobjects(numel(field_tabs), 1);
-hide_buttons = gobjects(numel(field_tabs), 1);
-
-for field_index = 1:numel(field_tabs)
-    plot_tab = field_tabs(field_index);
-    plot_panel = uipanel(plot_tab, 'BorderType', 'none', ...
-        'Units', 'normalized', 'Position', [0 0 0.86 1]);
-    layout = tiledlayout(plot_panel, 1, 2, 'TileSpacing', 'compact');
-    selection_panel = uipanel(plot_tab, 'Title', 'Excitation groups', ...
-        'FontSize', 11, 'Units', 'normalized', 'Position', [0.86 0.02 0.14 0.96]);
-    show_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
-        'String', 'All', 'Tag', 'show_all_fields', ...
-        'Units', 'normalized', 'Position', [0.05 0.92 0.42 0.05]);
-    hide_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
-        'String', 'None', 'Tag', 'hide_all_fields', ...
-        'Units', 'normalized', 'Position', [0.53 0.92 0.42 0.05]);
-    row_height = min(0.05, 0.75 / numel(group_ids));
-    for group_index = 1:numel(group_ids)
-        group_name = sprintf('Group %d', group_index);
-        if ~isempty(excitation)
-            group_name = sprintf('%g A (reference)', excitation(group_index));
-        end
-        group_checks(group_index, field_index) = uicontrol(selection_panel, ...
-            'Style', 'checkbox', 'String', group_name, 'Value', 1, 'FontSize', 11, ...
-            'Tag', sprintf('field_group%02d', group_index), ...
-            'Units', 'normalized', ...
-            'Position', [0.05 0.87 - group_index * row_height 0.9 row_height]);
-    end
-    uicontrol(selection_panel, 'Style', 'text', 'FontSize', 10, ...
-        'String', {'Selection applies to', 'all flux-map tabs.'}, ...
-        'Units', 'normalized', 'Position', [0.05 0.01 0.9 0.08]);
-    values = field_values{field_index};
-    plot_currents = currents;
-    axis_labels = current_labels;
-
-    if field_index == 2
-        plot_currents(:, 1) = reduction.s;
-        axis_labels{1, 2} = 's = i_d + k i_e in A';
-        axis_labels{2, 1} = 's = i_d + k i_e in A';
-    end
-
-    for component = 1:2
-        nexttile(layout);
-        hold on;
-
-        for group_index = 1:numel(group_ids)
-            group_rows = groups == group_ids(group_index);
-            group_currents = plot_currents(group_rows, :);
-            group_flux = values(group_rows, component);
-            mesh = triangles{group_index};
-            mesh = mesh(all(isfinite(group_flux(mesh)), 2), :);
-
-            columns = current_columns{component};
-            field_meshes(group_index, component, field_index) = trisurf( ...
-                mesh, group_currents(:, columns(1)), group_currents(:, columns(2)), ...
-                1000 * group_flux, group_currents(:, 3), ...
-                'FaceColor', 'none', 'EdgeColor', 'interp', 'LineWidth', 0.5);
-
-            if plot_tab == comparison_tab
-                set(field_meshes(group_index, component, field_index), ...
-                    'FaceColor', 'interp', 'FaceAlpha', 0.6, 'EdgeColor', 'none', ...
-                    'FaceVertexCData', measured_colors(group_rows, :));
-                reconstructed_values = reconstructed_flux(group_rows, component);
-                reconstructed_mesh = mesh(all(isfinite(reconstructed_values(mesh)), 2), :);
-                comparison_meshes(group_index, component) = trisurf( ...
-                    reconstructed_mesh, group_currents(:, columns(1)), ...
-                    group_currents(:, columns(2)), 1000 * reconstructed_values, ...
-                    'FaceColor', 'none', 'EdgeColor', [0.12 0.12 0.12], ...
-                    'LineStyle', '-', 'LineWidth', 0.35, 'EdgeAlpha', 0.35);
-                point_error = 1000 * flux_error(group_rows, component);
-                supported_points = isfinite(reconstructed_values) & isfinite(point_error);
-                comparison_points(group_index, component) = scatter3( ...
-                    group_currents(supported_points, columns(1)), ...
-                    group_currents(supported_points, columns(2)), ...
-                    1000 * reconstructed_values(supported_points), ...
-                    24, point_error(supported_points), 'filled', 'MarkerEdgeColor', 'none');
-            end
-        end
-
-        if plot_tab == comparison_tab
-            measured_key = plot3(NaN, NaN, NaN, 's', ...
-                'MarkerFaceColor', [0.2 0.5 0.9], 'MarkerEdgeColor', 'none', 'MarkerSize', 9);
-            reconstructed_key = plot3(NaN, NaN, NaN, '-o', ...
-                'Color', [0.12 0.12 0.12], 'LineWidth', 0.6, ...
-                'MarkerFaceColor', 'white', 'MarkerEdgeColor', 'none');
-            legend([measured_key, reconstructed_key], ...
-                {'Measured (surface)', 'Reconstructed (error color)'}, 'Location', 'southoutside', ...
-                'Orientation', 'horizontal', 'FontSize', 10, 'AutoUpdate', 'off');
-        end
-
-        xlabel(axis_labels{component, 1});
-        ylabel(axis_labels{component, 2});
-        zlabel(flux_label(component));
-        title(flux_label(component));
-        view(35, 25);
-        grid on;
-        axis manual;
-        color_scale = colorbar;
-        if plot_tab == comparison_tab
-            clim([-error_limit error_limit]);
-            color_scale.Label.String = 'Reconstructed - measured in mVs';
-        else
-            clim(excitation_limits);
-            color_scale.Label.String = 'Measured i_e in A';
-        end
-    end
-
-    if plot_tab == comparison_tab
-        set(findall(plot_tab, 'Type', 'axes'), 'Colormap', error_colors);
-    else
-        set(findall(plot_tab, 'Type', 'axes'), 'Colormap', turbo(256));
-    end
-    title(layout, field_names{field_index});
-end
-
-% Include both overlaid fields in the same group selection.
-field_meshes = cat(3, field_meshes, comparison_meshes, comparison_points);
-% Keep the same group selection across both components and all field tabs.
-for field_index = 1:numel(field_tabs)
-    show_buttons(field_index).Callback = ...
-        @(~, ~) set_field_visibility(field_meshes, group_checks, true);
-    hide_buttons(field_index).Callback = ...
-        @(~, ~) set_field_visibility(field_meshes, group_checks, false);
-    for group_index = 1:numel(group_ids)
-        group_checks(group_index, field_index).Callback = @(source, ~) ...
-            set_field_visibility(field_meshes(group_index, :, :), ...
-            group_checks(group_index, :), source.Value);
-    end
-end
 
 % The stored reduced field is the same 81-by-81 LUT used by method A.
 s_axis = map.origin(1) + map.scale(1) * map.axes{1};
@@ -301,7 +168,230 @@ plot_contour_curves(contour_tab, k, contour, excitation);
 q_tab = uitab(tabs, 'Title', '3D diagnostics', 'Tag', 'contour_q_dependence');
 plot_q_dependence(q_tab, contour);
 
-tabs.SelectedTab = measured_tab;
+tabs.SelectedTab = flux_tab;
+end
+
+
+function plot_field_tabs(parent, currents, measured, reconstructed, groups, ...
+    excitation, triangles, shifted_id, k, quantity, labels, units, tag)
+group_ids = unique(groups);
+field_error = reconstructed - measured;
+error_limit = max(1000 * abs(field_error), [], 'all', 'omitnan');
+error_limit = max(error_limit, eps);
+measured_tab = uitab(parent, 'Title', 'Measured', 'Tag', ['measured_' tag]);
+shifted_tab = uitab(parent, 'Title', 'Shifted', 'Tag', ['shifted_' tag]);
+reconstructed_tab = uitab(parent, 'Title', 'Reconstructed', 'Tag', ['reconstructed_' tag]);
+comparison_tab = uitab(parent, 'Title', 'Reconstructed + Measured', ...
+    'Tag', ['measured_reconstructed_' tag]);
+excitation_limits = [min(currents(:, 3)), max(currents(:, 3))];
+excitation_fraction = (currents(:, 3) - excitation_limits(1)) ...
+    / max(diff(excitation_limits), eps);
+measured_colors = interp1(linspace(0, 1, 256), turbo(256), excitation_fraction);
+
+% Keep each group's original mesh, also when shifting its d-current to s.
+field_values = {measured, measured, reconstructed, measured};
+field_names = {['Measured ' quantity ' fields'], ...
+    sprintf('Measured fields shifted to s = i_d + k i_e, k = %.5f A/A', k), ...
+    [quantity ' reconstructed from F(s, i_q)'], ...
+    ['Measured and reconstructed ' quantity ' fields']};
+field_tabs = [measured_tab, shifted_tab, reconstructed_tab, comparison_tab];
+component_count = size(measured, 2);
+flux_component = ceil((1:component_count) / (component_count / 2));
+current_columns = {[2 1], [1 2]};
+current_labels = {'i_q in A', 'i_d in A'; 'i_d in A', 'i_q in A'};
+field_meshes = gobjects(numel(group_ids), component_count, numel(field_tabs));
+comparison_meshes = gobjects(numel(group_ids), component_count);
+comparison_points = gobjects(numel(group_ids), component_count);
+group_checks = gobjects(numel(group_ids), numel(field_tabs));
+show_buttons = gobjects(numel(field_tabs), 1);
+hide_buttons = gobjects(numel(field_tabs), 1);
+
+for field_index = 1:numel(field_tabs)
+    plot_tab = field_tabs(field_index);
+    plot_panel = uipanel(plot_tab, 'BorderType', 'none', ...
+        'Units', 'normalized', 'Position', [0 0 0.86 1]);
+    layout = tiledlayout(plot_panel, component_count / 2, 2, 'TileSpacing', 'compact');
+    selection_panel = uipanel(plot_tab, 'Title', 'Excitation groups', ...
+        'FontSize', 11, 'Units', 'normalized', 'Position', [0.86 0.02 0.14 0.96]);
+    show_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
+        'String', 'All', 'Tag', 'show_all_fields', ...
+        'Units', 'normalized', 'Position', [0.05 0.92 0.42 0.05]);
+    hide_buttons(field_index) = uicontrol(selection_panel, 'Style', 'pushbutton', ...
+        'String', 'None', 'Tag', 'hide_all_fields', ...
+        'Units', 'normalized', 'Position', [0.53 0.92 0.42 0.05]);
+    row_height = min(0.05, 0.75 / numel(group_ids));
+    for group_index = 1:numel(group_ids)
+        group_name = sprintf('Group %d', group_index);
+        if ~isempty(excitation)
+            group_name = sprintf('%g A (reference)', excitation(group_index));
+        end
+        group_checks(group_index, field_index) = uicontrol(selection_panel, ...
+            'Style', 'checkbox', 'String', group_name, 'Value', 1, 'FontSize', 11, ...
+            'Tag', sprintf('field_group%02d', group_index), ...
+            'Units', 'normalized', ...
+            'Position', [0.05 0.87 - group_index * row_height 0.9 row_height]);
+    end
+    uicontrol(selection_panel, 'Style', 'text', 'FontSize', 10, ...
+        'String', {'Selection applies to', ['all ' quantity '-map tabs.']}, ...
+        'Units', 'normalized', 'Position', [0.05 0.01 0.9 0.08]);
+    values = field_values{field_index};
+    plot_currents = currents;
+    axis_labels = current_labels;
+
+    if field_index == 2
+        plot_currents(:, 1) = shifted_id;
+        axis_labels{1, 2} = 's = i_d + k i_e in A';
+        axis_labels{2, 1} = 's = i_d + k i_e in A';
+    end
+
+    for component = 1:component_count
+        nexttile(layout);
+        hold on;
+
+        for group_index = 1:numel(group_ids)
+            group_rows = groups == group_ids(group_index);
+            group_currents = plot_currents(group_rows, :);
+            group_flux = values(group_rows, component);
+            mesh = triangles{group_index};
+            mesh = mesh(all(isfinite(group_flux(mesh)), 2), :);
+
+            columns = current_columns{flux_component(component)};
+            field_meshes(group_index, component, field_index) = trisurf( ...
+                mesh, group_currents(:, columns(1)), group_currents(:, columns(2)), ...
+                1000 * group_flux, group_currents(:, 3), ...
+                'FaceColor', 'none', 'EdgeColor', 'interp', 'LineWidth', 0.5);
+
+            if plot_tab == comparison_tab
+                set(field_meshes(group_index, component, field_index), ...
+                    'FaceColor', 'interp', 'FaceAlpha', 0.6, 'EdgeColor', 'none', ...
+                    'FaceVertexCData', measured_colors(group_rows, :));
+                reconstructed_values = reconstructed(group_rows, component);
+                reconstructed_mesh = mesh(all(isfinite(reconstructed_values(mesh)), 2), :);
+                comparison_meshes(group_index, component) = trisurf( ...
+                    reconstructed_mesh, group_currents(:, columns(1)), ...
+                    group_currents(:, columns(2)), 1000 * reconstructed_values, ...
+                    'FaceColor', 'none', 'EdgeColor', [0.12 0.12 0.12], ...
+                    'LineStyle', '-', 'LineWidth', 0.35, 'EdgeAlpha', 0.35);
+                point_error = 1000 * field_error(group_rows, component);
+                supported_points = isfinite(reconstructed_values) & isfinite(point_error);
+                comparison_points(group_index, component) = scatter3( ...
+                    group_currents(supported_points, columns(1)), ...
+                    group_currents(supported_points, columns(2)), ...
+                    1000 * reconstructed_values(supported_points), ...
+                    24, point_error(supported_points), 'filled', 'MarkerEdgeColor', 'none');
+            end
+        end
+
+        if plot_tab == comparison_tab
+            measured_key = plot3(NaN, NaN, NaN, 's', ...
+                'MarkerFaceColor', [0.2 0.5 0.9], 'MarkerEdgeColor', 'none', 'MarkerSize', 9);
+            reconstructed_key = plot3(NaN, NaN, NaN, '-o', ...
+                'Color', [0.12 0.12 0.12], 'LineWidth', 0.6, ...
+                'MarkerFaceColor', 'white', 'MarkerEdgeColor', 'none');
+            legend([measured_key, reconstructed_key], ...
+                {'Measured (surface)', 'Reconstructed (error color)'}, 'Location', 'southoutside', ...
+                'Orientation', 'horizontal', 'FontSize', 10, 'AutoUpdate', 'off');
+        end
+
+        xlabel(axis_labels{flux_component(component), 1});
+        ylabel(axis_labels{flux_component(component), 2});
+        zlabel(labels{component});
+        title(labels{component});
+        view(35, 25);
+        grid on;
+        axis manual;
+        color_scale = colorbar;
+        if plot_tab == comparison_tab
+            clim([-error_limit error_limit]);
+            color_scale.Label.String = ['Reconstructed - measured in ' units];
+        else
+            clim(excitation_limits);
+            color_scale.Label.String = 'Measured i_e in A';
+        end
+    end
+
+    if plot_tab == comparison_tab
+        set(findall(plot_tab, 'Type', 'axes'), 'Colormap', error_colors);
+    else
+        set(findall(plot_tab, 'Type', 'axes'), 'Colormap', turbo(256));
+    end
+    title(layout, field_names{field_index});
+end
+
+% Include both overlaid fields in the same group selection.
+field_meshes = cat(3, field_meshes, comparison_meshes, comparison_points);
+% Keep the same group selection across all components and field tabs.
+for field_index = 1:numel(field_tabs)
+    show_buttons(field_index).Callback = ...
+        @(~, ~) set_field_visibility(field_meshes, group_checks, true);
+    hide_buttons(field_index).Callback = ...
+        @(~, ~) set_field_visibility(field_meshes, group_checks, false);
+    for group_index = 1:numel(group_ids)
+        group_checks(group_index, field_index).Callback = @(source, ~) ...
+            set_field_visibility(field_meshes(group_index, :, :), ...
+            group_checks(group_index, :), source.Value);
+    end
+end
+
+parent.SelectedTab = measured_tab;
+end
+
+
+function values = measured_inductance(currents, flux, groups, triangles)
+% Area-weighted vertex averages of the original flux triangles' derivatives.
+group_ids = unique(groups);
+values = nan(size(currents, 1), 4);
+for g = 1:numel(group_ids)
+    rows = groups == group_ids(g);
+    x = currents(rows, 1:2);
+    y = flux(rows, :);
+    t = triangles{g};
+    u = x(t(:, 2), :) - x(t(:, 1), :);
+    v = x(t(:, 3), :) - x(t(:, 1), :);
+    area = u(:, 1).*v(:, 2) - u(:, 2).*v(:, 1);
+    weight = abs(area);
+    total = accumarray(t(:), repmat(weight, 3, 1), [size(x, 1) 1]);
+    local = nan(size(x, 1), 4);
+    for c = 1:2
+        a = y(t(:, 2), c) - y(t(:, 1), c);
+        b = y(t(:, 3), c) - y(t(:, 1), c);
+        did = (a.*v(:, 2) - b.*u(:, 2))./area;
+        diq = (b.*u(:, 1) - a.*v(:, 1))./area;
+        local(:, 2*c-1) = accumarray(t(:), repmat(weight.*did, 3, 1), ...
+            [size(x, 1) 1])./total;
+        local(:, 2*c) = accumarray(t(:), repmat(weight.*diq, 3, 1), ...
+            [size(x, 1) 1])./total;
+    end
+    values(rows, :) = local;
+end
+end
+
+
+function values = reconstructed_inductance(map, currents)
+% Exact partial derivatives of the existing bilinear flux LUT at fixed ie.
+z = reduction_coordinates(currents, map.model, map.p, map.current_scale);
+z = (z - map.origin)./map.scale;
+i = discretize(z(:, 1), map.axes{1});
+j = discretize(z(:, 2), map.axes{2});
+valid = isfinite(i) & isfinite(j);
+i = i(valid);
+j = j(valid);
+ds = diff(map.axes{1}(1:2));
+dq = diff(map.axes{2}(1:2));
+s_axis = map.axes{1}(:);
+q_axis = map.axes{2}(:);
+a = (z(valid, 1) - s_axis(i))/ds;
+b = (z(valid, 2) - q_axis(j))/dq;
+values = nan(size(currents, 1), 4);
+for c = 1:2
+    f = map.values{c};
+    f00 = f(sub2ind(size(f), i, j));
+    f10 = f(sub2ind(size(f), i+1, j));
+    f01 = f(sub2ind(size(f), i, j+1));
+    f11 = f(sub2ind(size(f), i+1, j+1));
+    values(valid, 2*c-1) = ((1-b).*(f10-f00) + b.*(f11-f01))/(ds*map.scale(1));
+    values(valid, 2*c) = ((1-a).*(f01-f00) + a.*(f11-f10))/(dq*map.scale(2));
+end
 end
 
 
