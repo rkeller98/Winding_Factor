@@ -243,10 +243,19 @@ end
 fprintf('Relative field flux / DeltaLff omitted points: %d / %d\n', ...
     sum(~isfinite(psi_f_rel)),sum(~isfinite(DeltaLff)));
 
+%% One figure with native tabs
+fig = figure('Name','Coenergy investigation','NumberTitle','off', ...
+    'WindowStyle','normal','Units','normalized','Position',[0.02 0.05 0.96 0.85]);
+tabs = uitabgroup(fig);
+tabPsi = uitab(tabs,'Title','Stator Flux');
+tabField = uitab(tabs,'Title','Field Flux');
+tabL = uitab(tabs,'Title','Inductances');
+tabK = uitab(tabs,'Title','Factors');
+tabSG = uitab(tabs,'Title','s/g Flux');
+tabLSG = uitab(tabs,'Title','s/g Inductances');
+
 %% Relative field flux: all field-current levels in one axes
-figField = figure('Name','Relative field flux','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figField,1,1,'TileSpacing','compact','Padding','compact');
+t = tiledlayout(tabField,1,1,'TileSpacing','compact','Padding','compact');
 axF = nexttile(t);
 hold(axF,'on');
 handles = gobjects(numel(i_f_bp),1);
@@ -262,10 +271,9 @@ lgd = legend(axF,handles,field_labels,'AutoUpdate','off');
 lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
-%% Reconstructed stator fluxes
-figPsi = figure('Name','Reconstructed stator fluxes','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figPsi,1,2,'TileSpacing','compact','Padding','compact');
+%% Measured stator fluxes and fitted wireframes
+t = tiledlayout(tabPsi,1,2,'TileSpacing','compact','Padding','compact');
+title(t,'Lines: coenergy fit | Points: measurements');
 psi_names = ["psi_d","psi_q"];
 for c = 1:2
     ax = nexttile(t,c);
@@ -274,6 +282,11 @@ for c = 1:2
         rows = slice_rows{idx};
         h = plot_field_slice(ax,X(rows,1:2),Psi(rows,c),slice_tri{idx}, ...
             field_colors(idx,:),field_tags(idx),field_labels(idx));
+        % Keep every measurement, including repeats omitted from the mesh.
+        mask = i_f == i_f_bp(idx);
+        scatter3(ax,i_d(mask),i_q(mask),Y(mask,c),7,field_colors(idx,:), ...
+            'filled','MarkerFaceAlpha',0.45,'MarkerEdgeAlpha',0.45, ...
+            'Tag',field_tags(idx),'HandleVisibility','off');
         if c == 1, handles(idx) = h; end
     end
     xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
@@ -289,9 +302,7 @@ lgd.ItemHitFcn = @toggle_field_level;
 % and reference-relative DeltaLff, never an identified absolute Lff.
 L_display = [Ldd,Ldq,Ldf,Lqd,Lqq,Lqf,Lfd,Lfq,DeltaLff];
 L_names = ["Ldd","Ldq","Ldf","Lqd","Lqq","Lqf","Lfd","Lfq","\Delta Lff"];
-figL = figure('Name','Differential inductance matrix','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figL,3,3,'TileSpacing','loose','Padding','compact');
+t = tiledlayout(tabL,3,3,'TileSpacing','loose','Padding','compact');
 for panel = 1:9
     ax = nexttile(t,panel);
     hold(ax,'on');
@@ -314,9 +325,7 @@ lgd.ItemHitFcn = @toggle_field_level;
 %% Measured fluxes in the exploratory s,g coordinates
 % Use scatter here: pointwise factors can fold the coordinates, so physical
 % slice triangles would create misleading surfaces after this transformation.
-figSG = figure('Name','Measured fluxes in s,g','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figSG,1,2,'TileSpacing','compact','Padding','compact');
+t = tiledlayout(tabSG,1,2,'TileSpacing','compact','Padding','compact');
 for c = 1:2
     ax = nexttile(t,c);
     hold(ax,'on');
@@ -335,9 +344,7 @@ lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
 %% Physical stator inductances plotted against s,g
-figLSG = figure('Name','Stator inductances in s,g','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figLSG,2,3,'TileSpacing','loose','Padding','compact');
+t = tiledlayout(tabLSG,2,3,'TileSpacing','loose','Padding','compact');
 for panel = 1:6
     ax = nexttile(t,panel);
     hold(ax,'on');
@@ -357,9 +364,7 @@ lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
 %% Local factors: points preserve large ratios near small denominators
-figK = figure('Name','Local factors','NumberTitle','off', ...
-    'Units','normalized','Position',[0.02 0.05 0.96 0.85]);
-t = tiledlayout(figK,1,2,'TileSpacing','compact','Padding','compact');
+t = tiledlayout(tabK,1,2,'TileSpacing','compact','Padding','compact');
 k_values = [kd,kq];
 k_names = ["k_d","k_q"];
 for c = 1:2
@@ -389,8 +394,8 @@ if isempty(tri)
     h = scatter3(ax,xy(valid,1),xy(valid,2),height(valid),12,color, ...
         'filled','Tag',tag,'DisplayName',label);
 else
-    h = trisurf(tri,xy(:,1),xy(:,2),height,'Parent',ax, ...
-        'FaceColor',color,'FaceAlpha',0.55,'EdgeColor','none', ...
+    h = trimesh(tri,xy(:,1),xy(:,2),height,'Parent',ax, ...
+        'FaceColor','none','EdgeColor',color,'LineWidth',0.5, ...
         'Tag',tag,'DisplayName',label);
     used = false(size(height));
     used(tri(:)) = true;
@@ -404,8 +409,9 @@ end
 
 function toggle_field_level(lgd,event)
 % findall also finds hidden objects; the legend remains clickable to restore.
-fig = ancestor(lgd,'figure');
-objects = findall(fig,'Tag',event.Peer.Tag);
+% Limit the shared field-current toggle to the clicked legend's tab.
+tab = ancestor(lgd,'uitab');
+objects = findall(tab,'Tag',event.Peer.Tag);
 if strcmp(event.Peer.Visible,'on')
     set(objects,'Visible','off');
 else
