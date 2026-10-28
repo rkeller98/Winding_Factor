@@ -147,7 +147,7 @@ fprintf('Coenergy flux RMSE [d q] in Vs: %.6g %.6g\n', ...
 fprintf('Coenergy flux max abs error [d q] in Vs: %.6g %.6g\n', ...
     max(abs(flux_error),[],1));
 fprintf('Max |Ldq-Lqd| in H: %.6g\n',max(abs(L(:,1,2)-L(:,2,1))));
-fprintf('Reference (%g, %g) A: %d/%d reference-curve points supported\n', ...
+fprintf('3D-hull reference (%g, %g) A: %d/%d points supported\n', ...
     i_d_ref,i_q_ref,sum(reference_supported),numel(i_f));
 psi_f_ref_rel = field_flux_difference(z_d_ref,z_q_ref,dPhi_f_ref);
 fprintf('Max |psi_f_rel at reference| in Vs: %.6g (by construction)\n', ...
@@ -229,11 +229,13 @@ field_labels = compose("i_f = %.2f A",i_f_bp);
 field_tags = compose("field_level_%d",1:numel(i_f_bp));
 slice_rows = cell(numel(i_f_bp),1);
 slice_tri = cell(numel(i_f_bp),1);
+slice_support = cell(numel(i_f_bp),1);
+on_slice_boundary = true(size(i_d));
 for idx = 1:numel(i_f_bp)
     rows = find(i_f == i_f_bp(idx));
     % Repeated requested coordinates have the same fitted values. Keep one
     % vertex for meshing; the fit and measured scatter data are untouched.
-    [xy,first] = unique(X(rows,1:2),'rows');
+    [xy,first,vertex_index] = unique(X(rows,1:2),'rows');
     slice_rows{idx} = rows(first);
     xy_scaled = (xy-origin(1:2))./scale(1:2);
     tri = zeros(0,3);
@@ -264,14 +266,150 @@ for idx = 1:numel(i_f_bp)
         tri = tri(keep,:);
     end
     slice_tri{idx} = tri;
+    if ~isempty(tri)
+        slice_support{idx} = triangulation(tri,xy_scaled);
+        boundary_vertices = true(size(xy,1),1);
+        boundary_vertices(unique(tri)) = false;
+        boundary_edges = freeBoundary(slice_support{idx});
+        boundary_vertices(boundary_edges(:)) = true;
+        on_slice_boundary(rows) = boundary_vertices(vertex_index);
+    end
     fprintf('i_f=%g A: %d vertices, %d duplicates, %d triangles, %d rejected\n', ...
         i_f_bp(idx),size(xy,1),numel(rows)-numel(first),size(tri,1),removed);
     if isempty(tri)
         fprintf('  No reliable 2D surface: showing points for this slice.\n');
     end
 end
+
+%% Reference support in each measured field-current slice
+% A 3D convex hull can bridge missing regions and different slice footprints.
+% Require the reference to lie in the retained physical slice triangulation.
+reference_supported_hull = reference_supported;
+slice_reference_supported = false(numel(i_f_bp),1);
+reference_xy = ([i_d_ref,i_q_ref]-origin(1:2))./scale(1:2);
+for idx = 1:numel(i_f_bp)
+    if ~isempty(slice_support{idx})
+        slice_reference_supported(idx) = ...
+            ~isnan(pointLocation(slice_support{idx},reference_xy));
+    end
+    rows = i_f == i_f_bp(idx);
+    reference_supported(rows) = reference_supported_hull(rows) & ...
+        slice_reference_supported(idx);
+end
+W_coenergy_rel(~reference_supported) = NaN;
+psi_f_rel(~reference_supported) = NaN;
+DeltaLff(~reference_supported) = NaN;
+fprintf('Reference support: hull %d, slice-local %d/%d; newly omitted %d\n', ...
+    sum(reference_supported_hull),sum(reference_supported),numel(i_f), ...
+    sum(reference_supported_hull & ~reference_supported));
 fprintf('Relative field flux / DeltaLff omitted points: %d / %d\n', ...
     sum(~isfinite(psi_f_rel)),sum(~isfinite(DeltaLff)));
+
+%% Curvature diagnosis, always using every numerical value
+% Same d/q energy weight: eigenvalues of this symmetric stator L block are
+% meaningful. Its coenergy Hessian is 1.5 times this block. Unknown C''(i_f)
+% cannot repair a negative stator principal block; full 3D eigenvalues are
+% not physically identifiable without that field-only curvature.
+cross_L = (Ldq+Lqd)/2;
+eigen_gap = sqrt((Ldd-Lqq).^2+4*cross_L.^2);
+L_stator_min = (Ldd+Lqq-eigen_gap)/2;
+L_stator_max = (Ldd+Lqq+eigen_gap)/2;
+negative = L_stator_min < 0;
+negative_stator_points = table(i_d(negative),i_q(negative),i_f(negative), ...
+    L_stator_min(negative),L_stator_max(negative),on_slice_boundary(negative), ...
+    'VariableNames',{'i_d_A','i_q_A','i_f_A','min_eigen_H','max_eigen_H','on_boundary'});
+negative_stator_points = sortrows(negative_stator_points,'min_eigen_H');
+fprintf('Negative stator minimum eigenvalues: %d/%d; boundary/isolated: %d\n', ...
+    sum(negative),numel(i_d),sum(negative & on_slice_boundary));
+disp(negative_stator_points(1:min(12,height(negative_stator_points)),:));
+% The full list remains in negative_stator_points; print the worst locations.
+diagnostic_values = [Ldd,Lqq,Ldf,Lqf,Lfd,Lfq,DeltaLff,psi_f_rel];
+diagnostic_names = ["Ldd","Lqq","Ldf","Lqf","Lfd","Lfq", ...
+                    "DeltaLff (relative)","psi_f_rel (Vs)"];
+diagnostic_units = [repmat("H",1,7),"Vs"];
+for c = 1:size(diagnostic_values,2)
+    [lowest,row] = min(diagnostic_values(:,c),[],'omitnan');
+    if isnan(lowest)
+        fprintf('%s: no supported finite values\n',diagnostic_names(c));
+        continue
+    end
+    fprintf('%s: %d negative; min %.9g %s at (%.6g, %.6g, %.6g) A\n', ...
+        diagnostic_names(c),sum(diagnostic_values(:,c)<0),lowest, ...
+        diagnostic_units(c),X(row,:));
+end
+fprintf('Requested-minus-measured current RMS [d q f] in A: %.6g %.6g %.6g\n', ...
+    sqrt(mean((X-[meas.id_meas(:),meas.iq_meas(:),meas.ie_meas(:)]).^2,1)));
+% Negative mutual terms can reflect orientation/cross-saturation. Negative
+% psi_f_rel and DeltaLff are differences and do not establish negative
+% absolute field flux or Lff. Negative stator eigenvalues instead question a
+% stable reversible incremental model. Smoothness/reciprocity alone do not
+% constrain RBF curvature, nor prove that a measured machine is unstable.
+
+%% Direct finite differences at supported interior operating points
+% Require a neighborhood in this slice AND both adjacent field slices.
+% This is an interpolation-support check, not a claim of field measurements
+% between the recorded levels. Use two step sizes to expose FD sensitivity.
+fd_indices = zeros(0,1);
+probe_step = 2e-4*scale;
+for idx = unique(round(linspace(2,numel(i_f_bp)-1,5)))
+    rows = slice_rows{idx};
+    rows = rows(~on_slice_boundary(rows) & reference_supported(rows));
+    [~,order] = sort(sum((Z(rows,1:2)-[0.45,0.55]).^2,2));
+    for candidate = rows(order)'
+        probe_xy = (X(candidate,1:2) + ...
+            [0 0;probe_step(1) 0;-probe_step(1) 0;0 probe_step(2);0 -probe_step(2)] ...
+            - origin(1:2))./scale(1:2);
+        supported = all(slice_reference_supported(idx-1:idx+1));
+        for neighbor = idx-1:idx+1
+            supported = supported && ~isempty(slice_support{neighbor}) && ...
+                all(~isnan(pointLocation(slice_support{neighbor},probe_xy)));
+        end
+        if supported
+            fd_indices(end+1,1) = candidate;
+            break
+        end
+    end
+end
+fprintf('Finite-difference probe currents [i_d i_q i_f] in A:\n');
+disp(X(fd_indices,:));
+if ~isempty(fd_indices)
+    relative_eval = @(query) evaluate_relative_coenergy(query,origin,scale, ...
+        centers,sigma,coenergy_scale,coeff,[i_d_ref,i_q_ref]);
+    fd_expected = [Lfd(fd_indices),Lfq(fd_indices),DeltaLff(fd_indices)];
+    for step_fraction = [1e-4,5e-5]
+        fd_step = step_fraction*scale;
+        query = X(fd_indices,:);
+        [W0,~] = relative_eval(query);
+        fd_field = zeros(numel(fd_indices),3);
+        fd_coenergy = zeros(numel(fd_indices),3);
+        for c = 1:3
+            offset = zeros(1,3); offset(c) = fd_step(c);
+            [Wp,fp] = relative_eval(query+offset);
+            [Wm,fm] = relative_eval(query-offset);
+            fd_field(:,c) = (fp-fm)/(2*fd_step(c));
+            if c == 3
+                fd_coenergy(:,c) = (Wp-2*W0+Wm)/fd_step(3)^2;
+                fprintf('FD dW_rel/di_f max error in Vs, step %g: %.6g\n', ...
+                    step_fraction,max(abs((Wp-Wm)/(2*fd_step(3))-psi_f_rel(fd_indices))));
+            else
+                field_offset = [0,0,fd_step(3)];
+                Wpp = relative_eval(query+offset+field_offset);
+                Wpm = relative_eval(query+offset-field_offset);
+                Wmp = relative_eval(query-offset+field_offset);
+                Wmm = relative_eval(query-offset-field_offset);
+                fd_coenergy(:,c) = (Wpp-Wpm-Wmp+Wmm)/(4*fd_step(c)*fd_step(3));
+            end
+        end
+        fprintf('FD dpsi_f_rel/d[d q f] max errors in H, step %g: %.6g %.6g %.6g\n', ...
+            step_fraction,max(abs(fd_field-fd_expected),[],1));
+        fprintf('FD scalar-W Hessian [fd fq ff] max errors in H: %.6g %.6g %.6g\n', ...
+            max(abs(fd_coenergy-fd_expected),[],1));
+    end
+    fprintf('Weighted reciprocity max errors [fd fq] in H: %.6g %.6g\n', ...
+        max(abs(Lfd-dq_weight*Ldf)),max(abs(Lfq-dq_weight*Lqf)));
+else
+    warning('No supported interior finite-difference probes were found.');
+end
 
 %% Original connectivity in shifted coordinates, only where defensible
 shift_tri = cell(numel(i_f_bp),1);
@@ -457,6 +595,25 @@ lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
 %% Small plotting helpers
+function [W_rel,psi_f] = evaluate_relative_coenergy(query,origin,scale,centers, ...
+    sigma,coenergy_scale,coeff,reference)
+% Diagnostic evaluation only; callers check the query/reference support.
+z = (query-origin)./scale;
+zr = [repmat((reference-origin(1:2))./scale(1:2),size(z,1),1),z(:,3)];
+P = [z(:,1),z(:,2),z(:,1).^2/2,z(:,1).*z(:,2),z(:,2).^2/2, ...
+     z(:,1).*z(:,3),z(:,2).*z(:,3)];
+Pr = [zr(:,1),zr(:,2),zr(:,1).^2/2,zr(:,1).*zr(:,2),zr(:,2).^2/2, ...
+      zr(:,1).*zr(:,3),zr(:,2).*zr(:,3)];
+r2 = sum((reshape(z,[],1,3)-reshape(centers,1,[],3)).^2,3);
+r2_ref = sum((reshape(zr,[],1,3)-reshape(centers,1,[],3)).^2,3);
+phi = exp(-r2/sigma^2);
+phi_ref = exp(-r2_ref/sigma^2);
+W_rel = coenergy_scale*((P-Pr)*coeff(1:7)+(phi-phi_ref)*coeff(8:end));
+psi_f = coenergy_scale/scale(3)*((z(:,1)-zr(:,1))*coeff(6) + ...
+    (z(:,2)-zr(:,2))*coeff(7) + ...
+    (-2/sigma^2*(z(:,3)-centers(:,3)').*(phi-phi_ref))*coeff(8:end));
+end
+
 function h = plot_field_slice(ax,xy,height,tri,color,tag,label)
 % Remove faces touching invalid values without retriangulating across holes.
 valid = isfinite(height) & all(isfinite(xy),2);
