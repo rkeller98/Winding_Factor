@@ -1,6 +1,10 @@
 eval_set = load_data();
 meas = eval_set.measurement;
 
+%% Investigation settings
+remove_outliers = true; % visualization only; retain the numerical factors
+outlier_threshold = 6;
+
 %% Measurement Data
 
 i_d = meas.id_req(:);
@@ -193,6 +197,32 @@ g = i_q + kq.*i_f;
 % These pointwise coordinates are not a global energy-coordinate transform.
 % Inductances plotted against s,g remain derivatives in physical i_d,i_q,i_f.
 
+%% Visualization-only factor masks
+factor_plot_mask = isfinite([kd,kq]);
+for idx = 1:numel(i_f_bp)
+    rows = find(i_f == i_f_bp(idx));
+    for c = 1:2
+        factors = [kd(rows),kq(rows)];
+        finite = isfinite(factors(:,c));
+        if remove_outliers && any(finite)
+            center = median(factors(finite,c));
+            mad_value = median(abs(factors(finite,c)-center));
+            % A numerical floor handles constant/nearly constant slices.
+            spread = max(1.4826*mad_value,1e-12*max(1,abs(center)));
+            factor_plot_mask(rows,c) = finite & ...
+                abs(factors(:,c)-center) <= outlier_threshold*spread;
+        end
+    end
+    hidden = sum(~factor_plot_mask(rows,:),1);
+    hidden_shift = sum(~all(factor_plot_mask(rows,:),2));
+    fprintf('Plot mask i_f=%g A: hidden kd/kq/shifted = %d/%d/%d of %d\n', ...
+        i_f_bp(idx),hidden,hidden_shift,numel(rows));
+    if hidden_shift > 0.2*numel(rows)
+        warning('Visualization mask hides over 20%% of the %g A slice.',i_f_bp(idx));
+    end
+end
+shift_plot_mask = all(factor_plot_mask,2) & isfinite(s) & isfinite(g);
+
 %% Slice geometry and field-current colors, reused by the physical plots
 field_colors = turbo(numel(i_f_bp));
 field_labels = compose("i_f = %.2f A",i_f_bp);
@@ -243,56 +273,90 @@ end
 fprintf('Relative field flux / DeltaLff omitted points: %d / %d\n', ...
     sum(~isfinite(psi_f_rel)),sum(~isfinite(DeltaLff)));
 
+%% Original connectivity in shifted coordinates, only where defensible
+shift_tri = cell(numel(i_f_bp),1);
+for idx = 1:numel(i_f_bp)
+    rows = slice_rows{idx};
+    tri = slice_tri{idx};
+    tri = tri(all(reshape(shift_plot_mask(rows(tri)),size(tri)),2),:);
+    physical = (X(rows,1:2)-origin(1:2))./scale(1:2);
+    shifted = ([s(rows),g(rows)]-origin(1:2))./scale(1:2);
+    keep = false(size(tri,1),1);
+    folded = false(size(tri,1),1);
+    for j = 1:size(tri,1)
+        vertices = tri(j,:);
+        source_edges = (physical(vertices(2:3),:)-physical(vertices(1),:))';
+        shifted_edges = (shifted(vertices(2:3),:)-shifted(vertices(1),:))';
+        jacobian = shifted_edges/source_edges;
+        stretch = svd(jacobian);
+        folded(j) = det(jacobian) <= 0;
+        keep(j) = ~folded(j) && min(stretch) >= 0.1 && ...
+            max(stretch) <= 10 && max(stretch)/min(stretch) <= 10;
+    end
+    % Local checks cannot establish global injectivity. If orientation flips
+    % occur anywhere in the retained slice, show points for the whole slice.
+    if any(folded)
+        keep(:) = false;
+    end
+    shift_tri{idx} = tri(keep,:);
+    fprintf('Shifted i_f=%g A: %d/%d triangles retained, %d orientation flips\n', ...
+        i_f_bp(idx),sum(keep),size(tri,1),sum(folded));
+end
+
 %% One figure with native tabs
 fig = figure('Name','Coenergy investigation','NumberTitle','off', ...
     'WindowStyle','normal','Units','normalized','Position',[0.02 0.05 0.96 0.85]);
 tabs = uitabgroup(fig);
-tabPsi = uitab(tabs,'Title','Stator Flux');
-tabField = uitab(tabs,'Title','Field Flux');
+tabFlux = uitab(tabs,'Title','Flux Linkages');
+tabCoenergy = uitab(tabs,'Title','Coenergy');
 tabL = uitab(tabs,'Title','Inductances');
 tabK = uitab(tabs,'Title','Factors');
 tabSG = uitab(tabs,'Title','s/g Flux');
 tabLSG = uitab(tabs,'Title','s/g Inductances');
 
-%% Relative field flux: all field-current levels in one axes
-t = tiledlayout(tabField,1,1,'TileSpacing','compact','Padding','compact');
-axF = nexttile(t);
-hold(axF,'on');
+%% Measured stator fluxes and reconstructed field flux
+t = tiledlayout(tabFlux,1,3,'TileSpacing','compact','Padding','compact');
+title(t,'d/q: fitted lines and measured points | field: reconstruction only');
 handles = gobjects(numel(i_f_bp),1);
-for idx = 1:numel(i_f_bp)
-    rows = slice_rows{idx};
-    handles(idx) = plot_field_slice(axF,X(rows,1:2),psi_f_rel(rows), ...
-        slice_tri{idx},field_colors(idx,:),field_tags(idx),field_labels(idx));
-end
-xlabel(axF,'i_d in A'); ylabel(axF,'i_q in A'); zlabel(axF,'psi_f,rel in Vs');
-title(axF,sprintf('Relative to (i_d, i_q) = (%g, %g) A',i_d_ref,i_q_ref));
-view(axF,3); grid(axF,'on');
-lgd = legend(axF,handles,field_labels,'AutoUpdate','off');
-lgd.Layout.Tile = 'east';
-lgd.ItemHitFcn = @toggle_field_level;
-
-%% Measured stator fluxes and fitted wireframes
-t = tiledlayout(tabPsi,1,2,'TileSpacing','compact','Padding','compact');
-title(t,'Lines: coenergy fit | Points: measurements');
 psi_names = ["psi_d","psi_q"];
-for c = 1:2
+flux_names = [psi_names,"psi_f,rel (reconstructed)"];
+flux_values = [Psi,psi_f_rel];
+for c = 1:3
     ax = nexttile(t,c);
     hold(ax,'on');
     for idx = 1:numel(i_f_bp)
         rows = slice_rows{idx};
-        h = plot_field_slice(ax,X(rows,1:2),Psi(rows,c),slice_tri{idx}, ...
+        h = plot_field_slice(ax,X(rows,1:2),flux_values(rows,c),slice_tri{idx}, ...
             field_colors(idx,:),field_tags(idx),field_labels(idx));
         % Keep every measurement, including repeats omitted from the mesh.
-        mask = i_f == i_f_bp(idx);
-        scatter3(ax,i_d(mask),i_q(mask),Y(mask,c),7,field_colors(idx,:), ...
-            'filled','MarkerFaceAlpha',0.45,'MarkerEdgeAlpha',0.45, ...
-            'Tag',field_tags(idx),'HandleVisibility','off');
+        if c <= 2
+            mask = i_f == i_f_bp(idx);
+            scatter3(ax,i_d(mask),i_q(mask),Y(mask,c),7,field_colors(idx,:), ...
+                'filled','MarkerFaceAlpha',0.45,'MarkerEdgeAlpha',0.45, ...
+                'Tag',field_tags(idx),'HandleVisibility','off');
+        end
         if c == 1, handles(idx) = h; end
     end
     xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
-    zlabel(ax,psi_names(c)+" in Vs"); title(ax,psi_names(c));
+    zlabel(ax,flux_names(c)+" in Vs"); title(ax,flux_names(c));
     view(ax,3); grid(ax,'on');
 end
+lgd = legend(handles,field_labels,'AutoUpdate','off');
+lgd.Layout.Tile = 'east';
+lgd.ItemHitFcn = @toggle_field_level;
+
+%% Reference-relative magnetic coenergy, never absolute physical energy
+t = tiledlayout(tabCoenergy,1,1,'TileSpacing','compact','Padding','compact');
+ax = nexttile(t);
+hold(ax,'on');
+for idx = 1:numel(i_f_bp)
+    rows = slice_rows{idx};
+    handles(idx) = plot_field_slice(ax,X(rows,1:2),W_coenergy_rel(rows), ...
+        slice_tri{idx},field_colors(idx,:),field_tags(idx),field_labels(idx));
+end
+xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A'); zlabel(ax,'\Delta W''_m in J');
+title(ax,sprintf('Relative coenergy: reference (%g, %g) A',i_d_ref,i_q_ref));
+view(ax,3); grid(ax,'on');
 lgd = legend(handles,field_labels,'AutoUpdate','off');
 lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
@@ -322,17 +386,22 @@ lgd.ItemHitFcn = @toggle_field_level;
 % The former separate Ldd/Lqq figure duplicated the first and fifth panels.
 % Do not link absolute cameras: each inductance has a different height scale.
 
-%% Measured fluxes in the exploratory s,g coordinates
-% Use scatter here: pointwise factors can fold the coordinates, so physical
-% slice triangles would create misleading surfaces after this transformation.
+%% Fluxes in s,g: conservative wireframes and retained measured points
 t = tiledlayout(tabSG,1,2,'TileSpacing','compact','Padding','compact');
+title(t,'Fit: mesh where valid, otherwise points | measured: faint points');
 for c = 1:2
     ax = nexttile(t,c);
     hold(ax,'on');
     for idx = 1:numel(i_f_bp)
-        mask = i_f == i_f_bp(idx);
-        h = scatter3(ax,s(mask),g(mask),Y(mask,c),10,field_colors(idx,:), ...
-            'filled','Tag',field_tags(idx),'DisplayName',field_labels(idx));
+        rows = slice_rows{idx};
+        values = Psi(rows,c);
+        values(~shift_plot_mask(rows)) = NaN;
+        h = plot_field_slice(ax,[s(rows),g(rows)],values,shift_tri{idx}, ...
+            field_colors(idx,:),field_tags(idx),field_labels(idx));
+        mask = i_f == i_f_bp(idx) & shift_plot_mask;
+        scatter3(ax,s(mask),g(mask),Y(mask,c),7,field_colors(idx,:), ...
+            'filled','MarkerFaceAlpha',0.45,'MarkerEdgeAlpha',0.45, ...
+            'Tag',field_tags(idx),'HandleVisibility','off');
         if c == 1, handles(idx) = h; end
     end
     xlabel(ax,'s in A'); ylabel(ax,'g in A');
@@ -349,10 +418,11 @@ for panel = 1:6
     ax = nexttile(t,panel);
     hold(ax,'on');
     for idx = 1:numel(i_f_bp)
-        mask = i_f == i_f_bp(idx);
-        h = scatter3(ax,s(mask),g(mask),L_display(mask,panel),10, ...
-            field_colors(idx,:),'filled','Tag',field_tags(idx), ...
-            'DisplayName',field_labels(idx));
+        rows = slice_rows{idx};
+        values = L_display(rows,panel);
+        values(~shift_plot_mask(rows)) = NaN;
+        h = plot_field_slice(ax,[s(rows),g(rows)],values,shift_tri{idx}, ...
+            field_colors(idx,:),field_tags(idx),field_labels(idx));
         if panel == 1, handles(idx) = h; end
     end
     xlabel(ax,'s in A'); ylabel(ax,'g in A');
@@ -363,7 +433,7 @@ lgd = legend(handles,field_labels,'AutoUpdate','off');
 lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
-%% Local factors: points preserve large ratios near small denominators
+%% Local factors: mask only the plotted copy, never alter kd/kq
 t = tiledlayout(tabK,1,2,'TileSpacing','compact','Padding','compact');
 k_values = [kd,kq];
 k_names = ["k_d","k_q"];
@@ -371,10 +441,11 @@ for c = 1:2
     ax = nexttile(t,c);
     hold(ax,'on');
     for idx = 1:numel(i_f_bp)
-        mask = i_f == i_f_bp(idx);
-        h = scatter3(ax,i_d(mask),i_q(mask),k_values(mask,c),10, ...
-            field_colors(idx,:),'filled','Tag',field_tags(idx), ...
-            'DisplayName',field_labels(idx));
+        rows = slice_rows{idx};
+        values = k_values(rows,c);
+        values(~factor_plot_mask(rows,c)) = NaN;
+        h = plot_field_slice(ax,X(rows,1:2),values,slice_tri{idx}, ...
+            field_colors(idx,:),field_tags(idx),field_labels(idx));
         if c == 1, handles(idx) = h; end
     end
     xlabel(ax,'i_d in A'); ylabel(ax,'i_q in A');
@@ -388,7 +459,9 @@ lgd.ItemHitFcn = @toggle_field_level;
 %% Small plotting helpers
 function h = plot_field_slice(ax,xy,height,tri,color,tag,label)
 % Remove faces touching invalid values without retriangulating across holes.
-valid = isfinite(height);
+valid = isfinite(height) & all(isfinite(xy),2);
+xy(~valid,:) = NaN; % excluded points must not stretch the plotted axes
+height(~valid) = NaN;
 tri = tri(all(reshape(valid(tri),size(tri)),2),:);
 if isempty(tri)
     h = scatter3(ax,xy(valid,1),xy(valid,2),height(valid),12,color, ...
