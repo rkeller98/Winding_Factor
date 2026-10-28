@@ -4,6 +4,10 @@ meas = eval_set.measurement;
 %% Investigation settings
 remove_outliers = true; % visualization only; retain the numerical factors
 outlier_threshold = 6;
+kernel_name = "gaussian"; % alternative: "inverse_multiquadric"
+sigma = 0.4;
+lambda = 1e-4;
+max_centers = 1000;
 
 %% Measurement Data
 
@@ -51,17 +55,13 @@ Z = (X - origin) ./ scale;
 
 % Select RBF centers
 rng(1)
-n_centers = min(1000, size(Z,1));
+n_centers = min(max_centers, size(Z,1));
 centers = Z(randperm(size(Z,1), n_centers), :);
-
-% Gaussian RBF
-sigma = 0.4;
-lambda = 1e-4;
 
 R2 = sum((reshape(Z, [], 1, 3) - ...
           reshape(centers, 1, [], 3)).^2, 3);
 
-Phi = exp(-R2 / sigma^2);
+[Phi,Phi_r2,Phi_r2r2] = evaluate_rbf_kernel(R2,sigma,kernel_name);
 
 % Linear/quadratic terms give constant flux offsets and a constant Hessian.
 % Omit 1, z_f, z_f^2: stator data cannot determine ANY additive C(i_f).
@@ -73,7 +73,7 @@ dP = {[one, zero, z_d, z_q, zero, z_f, zero], ...
       [zero, one, zero, z_d, z_q, zero, z_f]};
 dPhi = cell(1,3);
 for r = 1:3
-    dPhi{r} = -2/sigma^2 * (Z(:,r) - centers(:,r)').*Phi;
+    dPhi{r} = 2*(Z(:,r)-centers(:,r)').*Phi_r2;
 end
 
 % W_coenergy = coenergy_scale * [P Phi]*coeff. This current scale (A) keeps
@@ -95,8 +95,8 @@ L = zeros(size(Z,1),2,3);
 quadratic_index = [3,4,6; 4,5,7];
 for r = 1:2
     for c = 1:3
-        d2Phi = (4/sigma^4 * (Z(:,r)-centers(:,r)').* ...
-            (Z(:,c)-centers(:,c)') - 2/sigma^2*(r==c)).*Phi;
+        d2Phi = 4*(Z(:,r)-centers(:,r)').* ...
+            (Z(:,c)-centers(:,c)').*Phi_r2r2 + 2*(r==c)*Phi_r2;
         L(:,r,c) = coenergy_scale/(dq_weight*scale(r)*scale(c)) * ...
             (coeff(quadratic_index(r,c)) + d2Phi*coeff(8:end));
     end
@@ -114,8 +114,8 @@ z_d_ref = Z_ref(:,1); z_q_ref = Z_ref(:,2);
 P_ref = [z_d_ref, z_q_ref, z_d_ref.^2/2, z_d_ref.*z_q_ref, ...
          z_q_ref.^2/2, z_d_ref.*z_f, z_q_ref.*z_f];
 R2_ref = sum((reshape(Z_ref,[],1,3) - reshape(centers,1,[],3)).^2,3);
-Phi_ref = exp(-R2_ref/sigma^2);
-dPhi_f_ref = -2/sigma^2 * (z_f-centers(:,3)').*Phi_ref;
+[Phi_ref,Phi_ref_r2,Phi_ref_r2r2] = evaluate_rbf_kernel(R2_ref,sigma,kernel_name);
+dPhi_f_ref = 2*(z_f-centers(:,3)').*Phi_ref_r2;
 W_coenergy_rel = coenergy_scale * ((P-P_ref)*coeff(1:7) + ...
     (Phi-Phi_ref)*coeff(8:end)); % J; W_coenergy(X)-W_coenergy(X_ref)
 % Use the same expression for measured points and the reference diagnostic.
@@ -133,14 +133,16 @@ W_coenergy_rel(~reference_supported) = NaN;
 psi_f_rel(~reference_supported) = NaN;
 
 % Relative field self-inductance: d^2(W_coenergy-W_coenergy_ref)/di_f^2.
-% Polynomial terms are at most linear in i_f; only the Gaussians contribute.
-d2Phi_ff = (4/sigma^4*(z_f-centers(:,3)').^2-2/sigma^2).*Phi;
-d2Phi_ff_ref = (4/sigma^4*(z_f-centers(:,3)').^2-2/sigma^2).*Phi_ref;
+% Polynomial terms are at most linear in i_f; only the RBFs contribute.
+d2Phi_ff = 4*(z_f-centers(:,3)').^2.*Phi_r2r2 + 2*Phi_r2;
+d2Phi_ff_ref = 4*(z_f-centers(:,3)').^2.*Phi_ref_r2r2 + 2*Phi_ref_r2;
 DeltaLff = coenergy_scale/scale(3)^2 * ...
     ((d2Phi_ff-d2Phi_ff_ref)*coeff(8:end));
 DeltaLff(~reference_supported) = NaN; % H; absolute Lff is still unknown
 
 %% Lightweight diagnostics (in-sample, not independent validation)
+fprintf('Kernel %s: sigma=%g, lambda=%g, centers=%d\n', ...
+    kernel_name,sigma,lambda,n_centers);
 flux_error = Psi-Y;
 fprintf('Coenergy flux RMSE [d q] in Vs: %.6g %.6g\n', ...
     sqrt(mean(flux_error.^2,1)));
@@ -374,7 +376,7 @@ fprintf('Finite-difference probe currents [i_d i_q i_f] in A:\n');
 disp(X(fd_indices,:));
 if ~isempty(fd_indices)
     relative_eval = @(query) evaluate_relative_coenergy(query,origin,scale, ...
-        centers,sigma,coenergy_scale,coeff,[i_d_ref,i_q_ref]);
+        centers,sigma,coenergy_scale,coeff,[i_d_ref,i_q_ref],kernel_name);
     fd_expected = [Lfd(fd_indices),Lfq(fd_indices),DeltaLff(fd_indices)];
     for step_fraction = [1e-4,5e-5]
         fd_step = step_fraction*scale;
@@ -594,9 +596,26 @@ lgd = legend(handles,field_labels,'AutoUpdate','off');
 lgd.Layout.Tile = 'east';
 lgd.ItemHitFcn = @toggle_field_level;
 
-%% Small plotting helpers
+%% Small local helpers
+function [phi,dphi,d2phi] = evaluate_rbf_kernel(r2,sigma,kernel_name)
+% Radial derivatives are with respect to squared normalized distance r2.
+switch kernel_name
+    case "gaussian"
+        phi = exp(-r2/sigma^2);
+        dphi = -phi/sigma^2;
+        d2phi = phi/sigma^4;
+    case "inverse_multiquadric"
+        u = 1+r2/sigma^2;
+        phi = u.^(-1/2);
+        dphi = -u.^(-3/2)/(2*sigma^2);
+        d2phi = 3*u.^(-5/2)/(4*sigma^4);
+    otherwise
+        error('Use gaussian or inverse_multiquadric for kernel_name.');
+end
+end
+
 function [W_rel,psi_f] = evaluate_relative_coenergy(query,origin,scale,centers, ...
-    sigma,coenergy_scale,coeff,reference)
+    sigma,coenergy_scale,coeff,reference,kernel_name)
 % Diagnostic evaluation only; callers check the query/reference support.
 z = (query-origin)./scale;
 zr = [repmat((reference-origin(1:2))./scale(1:2),size(z,1),1),z(:,3)];
@@ -606,12 +625,12 @@ Pr = [zr(:,1),zr(:,2),zr(:,1).^2/2,zr(:,1).*zr(:,2),zr(:,2).^2/2, ...
       zr(:,1).*zr(:,3),zr(:,2).*zr(:,3)];
 r2 = sum((reshape(z,[],1,3)-reshape(centers,1,[],3)).^2,3);
 r2_ref = sum((reshape(zr,[],1,3)-reshape(centers,1,[],3)).^2,3);
-phi = exp(-r2/sigma^2);
-phi_ref = exp(-r2_ref/sigma^2);
+[phi,phi_r2] = evaluate_rbf_kernel(r2,sigma,kernel_name);
+[phi_ref,phi_ref_r2] = evaluate_rbf_kernel(r2_ref,sigma,kernel_name);
 W_rel = coenergy_scale*((P-Pr)*coeff(1:7)+(phi-phi_ref)*coeff(8:end));
 psi_f = coenergy_scale/scale(3)*((z(:,1)-zr(:,1))*coeff(6) + ...
     (z(:,2)-zr(:,2))*coeff(7) + ...
-    (-2/sigma^2*(z(:,3)-centers(:,3)').*(phi-phi_ref))*coeff(8:end));
+    (2*(z(:,3)-centers(:,3)').*(phi_r2-phi_ref_r2))*coeff(8:end));
 end
 
 function h = plot_field_slice(ax,xy,height,tri,color,tag,label)
